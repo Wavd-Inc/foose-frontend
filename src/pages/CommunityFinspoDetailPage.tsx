@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type MouseEvent } from 'react'
-import { FaBookmark, FaComment } from 'react-icons/fa'
-import { IoShareSocial } from 'react-icons/io5'
+import { FaComment } from 'react-icons/fa'
 import { MdVerified } from 'react-icons/md'
-import { AppShell, Badge, FinspoCaption, FinspoComments, FinspoDetailSkeleton, FinspoLikeButton, FinspoMasonry, FinspoMediaBadge, FinspoMediaCarousel, FinspoSkeletonTile, InlineNotice, RefreshIndicator, StatePanel } from '../components'
+import { AppShell, Badge, FinspoComments, FinspoDetailSkeleton, FinspoLikeButton, FinspoMasonry, FinspoMediaBadge, FinspoMediaCarousel, FinspoSkeletonTile, InlineNotice, RefreshIndicator, SafeImage, StatePanel } from '../components'
 import { NavigationBackButton } from '../components/navigation'
 import { useApiResource } from '../hooks/useApiResource'
 import { useAuth } from '../hooks/useAuth'
@@ -12,7 +11,7 @@ import { usePageNavigationSnapshot } from '../hooks/usePageNavigationSnapshot'
 import { getNavigationSnapshot } from '../stores/navigationMemoryStore'
 import type { GalleryPost } from '../types/api'
 import { formatDate, initials } from '../utils/format'
-import { finspoImages } from '../utils/finspoImages'
+import { finspoCoverImage, finspoImages } from '../utils/finspoImages'
 import { cacheFinspoPreview, captureNavigationTrigger, getCurrentAppPathname, navigateTo, readFinspoPreview, withBasePath } from '../utils/navigation'
 
 type FinspoDetailNavigationSnapshot = {
@@ -52,32 +51,32 @@ function openFinspo(event: MouseEvent<HTMLAnchorElement>, post: GalleryPost) {
   })
 }
 
-function renderImageTile(post: GalleryPost, currentUserId?: string, mediaFailed = false) {
+function renderImageTile(post: GalleryPost, currentUserId?: string) {
   const images = finspoImages(post)
+  const cover = finspoCoverImage(post)
   return (
-    <article className="finspo-tile relative mb-3 break-inside-avoid max-md:mb-2" key={post._id}>
+    <article className="finspo-tile relative min-w-0 overflow-hidden rounded-2xl bg-foose-surface-mid shadow-sm" key={post._id}>
       <FinspoMediaBadge count={images.length} />
       <a
         aria-label={post.caption || `Finspo by ${authorName(post)}`}
-        className="finspo-image block overflow-hidden rounded-none border-0 bg-transparent [&_img]:h-auto [&_img]:w-full [&_img]:object-contain [&_img]:transition-transform [&_img]:duration-300 [&_img]:ease-out hover:[&_img]:scale-[1.025] motion-reduce:[&_img]:transform-none motion-reduce:[&_img]:transition-none finspo-tile-link"
+        className="finspo-image finspo-tile-link block overflow-hidden border-0 bg-transparent [&_img]:h-auto [&_img]:w-full [&_img]:object-contain [&_img]:transition-transform [&_img]:duration-300 [&_img]:ease-out hover:[&_img]:scale-[1.025] motion-reduce:[&_img]:transform-none motion-reduce:[&_img]:transition-none"
         href={withBasePath(`/community/finspo/${post._id}`)}
         id={`finspo-related-${post._id}`}
         onClick={(event) => openFinspo(event, post)}
       >
-        {mediaFailed
-          ? <span className="flex aspect-[4/5] w-full items-center justify-center bg-foose-surface-mid px-3 text-center text-xs font-bold text-foose-muted" role="img" aria-label="Finspo image unavailable">Media unavailable</span>
-          : <img alt="" src={post.imageUrl} />}
+        <SafeImage alt={post.caption || `Finspo by ${authorName(post)}`} className="h-auto w-full object-contain transition-transform duration-300 ease-out" fallbackClassName="aspect-[4/5] w-full" src={cover} />
       </a>
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
       <FinspoLikeButton
-        className="favorite-button floating-round absolute right-2 top-2 z-10 inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-transparent bg-white/90 text-foose-ink shadow transition hover:bg-accent-light hover:text-accent [&_svg]:size-4 [&.is-active]:bg-accent [&.is-active]:text-white"
+        className="favorite-button absolute right-2 top-2 z-10 inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-white/70 bg-white/95 text-foose-ink shadow-sm transition hover:bg-accent-light hover:text-accent [&_svg]:size-4 [&.is-active]:border-accent [&.is-active]:bg-accent [&.is-active]:text-white"
         initialCount={post.likes?.length}
         initialLiked={currentUserId ? post.likes?.some((userId) => String(userId) === currentUserId) : undefined}
         targetId={post._id}
       />
-      <FinspoCaption caption={post.caption} />
-      <a className="finspo-author-link mt-1 flex items-center gap-2 text-xs font-semibold text-foose-muted" href={authorHref(post)}>
-        {authorName(post)}
-      </a>
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 px-3 pb-3 text-white">
+        {post.caption && <p className="line-clamp-2 text-xs font-bold leading-4 drop-shadow-sm">{post.caption}</p>}
+        <a className="finspo-author-link pointer-events-auto mt-1 inline-flex min-h-5 items-center text-[11px] font-semibold text-white/90 hover:text-white hover:underline" href={authorHref(post)}>{authorName(post)}</a>
+      </div>
     </article>
   )
 }
@@ -97,7 +96,7 @@ export function CommunityFinspoDetailPage() {
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
   const [likeAnnouncement, setLikeAnnouncement] = useState('')
   const [relatedRailEnabled, setRelatedRailEnabled] = useState(() => (
-    typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
   ))
   const [viewportSize, setViewportSize] = useState(() => ({
     height: typeof window !== 'undefined' ? window.innerHeight : 800,
@@ -107,7 +106,6 @@ export function CommunityFinspoDetailPage() {
   const postResource = useApiResource<{ post: GalleryPost }>(postId ? `/community/gallery/${postId}` : null, Boolean(postId))
   const {
     error: relatedError,
-    failedImageSet: relatedFailedImageSet,
     items: relatedPosts,
     loading: relatedLoading,
     loadingMore: relatedLoadingMore,
@@ -128,9 +126,9 @@ export function CommunityFinspoDetailPage() {
   const activePostId = post?._id || ''
   const commentCount = post ? commentCounts[post._id] ?? post.commentCount ?? 0 : 0
   const commentsOpen = Boolean(activePostId && (commentsOpenPostId === activePostId || commentsRequested || focusCommentId))
-  const commentsPanelVisible = !post?.isArchived && (commentsOpen || relatedRailEnabled)
+  const commentsPanelVisible = !post?.isArchived && commentsOpen
   const relatedMedia = useImageBatchReady(
-    relatedPosts.map((relatedPost) => relatedPost.imageUrl),
+    relatedPosts.map(finspoCoverImage),
     !relatedLoading || Boolean(relatedPosts.length),
   )
   const currentImageDimensions = focusedImageDimensions.width ? focusedImageDimensions : null
@@ -166,7 +164,7 @@ export function CommunityFinspoDetailPage() {
   })
 
   useEffect(() => {
-    const railQuery = window.matchMedia('(min-width: 768px)')
+    const railQuery = window.matchMedia('(min-width: 1024px)')
     const updateRail = (event: MediaQueryListEvent) => setRelatedRailEnabled(event.matches)
     let resizeFrame = 0
     const updateViewport = () => {
@@ -183,13 +181,12 @@ export function CommunityFinspoDetailPage() {
   }, [])
 
   return (
-    <AppShell active="community" searchPlaceholder="Search Finspo..." wide>
-      <div className="dashboard-head mb-5 flex flex-col gap-2 md:hidden [&_h1]:text-2xl [&_h1]:font-bold [&_p]:text-sm [&_p]:leading-6 [&_p]:text-foose-muted">
-        <div>
-          <NavigationBackButton className="mb-6" fallback={finspoFallback} />
-          <h1>Finspo</h1>
-          <p>Open the post, then keep browsing the community wall around it.</p>
-        </div>
+    <AppShell active="community" searchPlaceholder="Search Finspo...">
+      <NavigationBackButton className="mb-5" fallback={finspoFallback} />
+      <div className="mb-7">
+        <p className="mb-2 text-xs font-extrabold uppercase tracking-[.15em] text-accent">Community / Finspo</p>
+        <h1 className="font-sans text-3xl font-extrabold leading-tight tracking-tight text-foose-text sm:text-4xl">A closer look.</h1>
+        <p className="mt-2 text-sm text-foose-muted">Explore this post and more looks from the Foose community.</p>
       </div>
 
       {!postId && <StatePanel action={<NavigationBackButton className="button button-secondary" fallback={finspoFallback} label="Browse Finspo" />} body="This link does not identify a Finspo post." layout="page" title="Finspo link is incomplete" tone="unavailable" />}
@@ -213,29 +210,28 @@ export function CommunityFinspoDetailPage() {
           <FinspoMasonry
             className="finspo-surround"
             featuredItem={(
-            <article className="finspo-detail-card finspo-focus-card relative grid min-w-0 self-start items-start gap-0 overflow-hidden rounded-xl border border-foose-border bg-foose-surface md:grid-cols-[minmax(0,min(52%,var(--finspo-image-width)))_minmax(0,1fr)]" key={`focus-${post._id}`}>
-              <NavigationBackButton className="hidden md:inline-flex" fallback={finspoFallback} variant="floating" />
+            <article className="finspo-detail-card finspo-focus-card relative grid min-w-0 self-start items-start gap-0 overflow-hidden rounded-2xl border border-foose-border/70 bg-foose-surface shadow-sm md:grid-cols-[minmax(0,min(52%,var(--finspo-image-width)))_minmax(0,1fr)]" key={`focus-${post._id}`}>
               <FinspoMediaCarousel
                 alt={post.caption || 'Finspo post'}
-                className="finspo-detail-image self-start justify-self-start rounded-none"
+                className="finspo-detail-image w-full rounded-none bg-foose-surface-mid md:h-full md:self-stretch"
                 images={finspoImages(post)}
                 onActiveImageLoad={setFocusedImageDimensions}
                 variant="detail"
               />
-              <div className={`finspo-detail-body min-w-0 w-full rounded-none border-0 bg-foose-surface p-4 shadow-none sm:p-5 ${commentsPanelVisible ? 'h-[min(72dvh,620px)] overflow-hidden md:h-[min(72dvh,680px)]' : ''}`}>
+              <div className={`finspo-detail-body min-w-0 w-full border-0 bg-foose-surface p-4 shadow-none sm:p-5 ${commentsPanelVisible ? 'h-[min(72dvh,620px)] overflow-hidden md:h-[min(72dvh,680px)]' : ''}`}>
                 <div className={commentsPanelVisible ? 'flex h-full min-h-0 flex-col' : 'grid grid-cols-1 gap-4'}>
-                  <div className={`grid grid-cols-1 gap-3 ${commentsPanelVisible ? 'finspo-thin-scrollbar max-h-[40%] shrink-0 overflow-y-auto overscroll-contain pb-3' : ''}`}>
-                  <a className="finspo-detail-head flex min-w-0 items-center gap-2" href={authorHref(post)}>
+                  <div className={`grid grid-cols-1 gap-3 ${commentsPanelVisible ? 'finspo-thin-scrollbar max-h-[48%] shrink-0 overflow-y-auto overscroll-contain pb-3' : ''}`}>
+                  <a className="finspo-detail-head flex min-w-0 items-center gap-3" href={authorHref(post)}>
                     {authorUser(post)?.profilePhoto ? (
-                      <img alt="" className="size-9 shrink-0 rounded-full object-cover md:size-8" src={authorUser(post)?.profilePhoto} />
+                      <img alt="" className="size-10 shrink-0 rounded-full object-cover" src={authorUser(post)?.profilePhoto} />
                     ) : (
-                      <span aria-hidden className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-light text-[11px] font-black text-accent md:size-8">
+                      <span aria-hidden className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-light text-xs font-black text-accent">
                         {initials(authorUser(post)?.name || authorName(post))}
                       </span>
                     )}
                     <span className="min-w-0">
                       <span className="flex min-w-0 items-center gap-1">
-                        <strong className="truncate text-xs">{authorName(post)}</strong>
+                        <strong className="truncate text-sm text-foose-text">{authorName(post)}</strong>
                         {authorUser(post)?.isKycVerified && <MdVerified aria-label="Verified profile" className="size-3.5 shrink-0 text-accent" />}
                       </span>
                       <span className="block truncate text-[11px] text-foose-muted">
@@ -243,24 +239,24 @@ export function CommunityFinspoDetailPage() {
                       </span>
                     </span>
                   </a>
-                  {post.caption && <p className="text-sm leading-5">{post.caption}</p>}
+                  {post.caption && <p className="whitespace-pre-wrap break-words text-sm font-semibold leading-6 text-foose-text">{post.caption}</p>}
                   {!!post.tags?.length && (
-                    <p className="muted-copy flex flex-wrap gap-x-2 gap-y-1 text-xs leading-5 text-foose-muted">
+                    <div className="flex flex-wrap gap-2">
                       {post.tags.map((tag) => (
                         <a
-                          className="rounded-sm text-accent transition hover:underline focus:outline-none focus:ring-2 focus:ring-accent/25"
-                          href={withBasePath(`/search?tag=${encodeURIComponent(tag.replace(/^#+/, ''))}&tab=all`)}
+                          className="inline-flex min-h-8 items-center rounded-full border border-foose-border bg-foose-surface-low px-3 text-xs font-bold text-accent transition hover:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25"
+                          href={withBasePath(`/search?tag=${encodeURIComponent(tag.replace(/^#+/, ''))}&tab=finspo`)}
                           key={tag}
                           onClick={(event) => {
                             event.preventDefault()
-                            navigateTo(`/search?tag=${encodeURIComponent(tag.replace(/^#+/, ''))}&tab=all`, { state: { unifiedSearchTrack: true } })
+                            navigateTo(`/search?tag=${encodeURIComponent(tag.replace(/^#+/, ''))}&tab=finspo`, { state: { unifiedSearchTrack: true } })
                           }}
                         >#{tag.replace(/^#+/, '')}</a>
                       ))}
-                    </p>
+                    </div>
                   )}
                   {post.createdAt && <small className="muted-copy text-xs leading-5 text-foose-muted">{formatDate(post.createdAt)}</small>}
-                  <div className="grid w-full grid-cols-4 items-center gap-1 border-y border-foose-border py-1.5">
+                  <div className="grid w-full grid-cols-2 items-center gap-2 border-y border-foose-border py-2">
                     {post.isArchived ? (
                       <Badge tone="neutral">Archived</Badge>
                     ) : (
@@ -268,38 +264,16 @@ export function CommunityFinspoDetailPage() {
                         <button
                           aria-controls={`finspo-comments-${post._id}`}
                           aria-expanded={commentsPanelVisible}
-                          aria-label={relatedRailEnabled
-                            ? `${commentCount} ${commentCount === 1 ? 'comment is' : 'comments are'} shown`
-                            : `${commentsOpen ? 'Hide' : 'Show'} ${commentCount} ${commentCount === 1 ? 'comment' : 'comments'}`}
+                          aria-label={`${commentsOpen ? 'Hide' : 'Show'} ${commentCount} ${commentCount === 1 ? 'comment' : 'comments'}`}
                           aria-pressed={commentsPanelVisible}
-                          className={`inline-flex min-h-8 w-full items-center justify-center gap-1 whitespace-nowrap rounded-lg border-0 bg-transparent px-2 py-1 text-[11px] font-bold transition hover:bg-foose-surface-low hover:text-accent focus:outline-none focus:ring-2 focus:ring-accent/30 ${commentsPanelVisible ? 'text-accent' : 'text-foose-text'}`}
+                          className={`inline-flex min-h-10 w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-foose-border px-2 py-1 text-xs font-bold transition hover:border-accent hover:text-accent focus:outline-none focus:ring-2 focus:ring-accent/30 ${commentsPanelVisible ? 'bg-accent-light text-accent' : 'bg-foose-surface text-foose-text'}`}
                           onClick={() => setCommentsOpenPostId((current) => current === post._id ? '' : post._id)}
                           type="button"
                         >
                           <FaComment aria-hidden className="size-3.5" />
                           <span aria-label={`${commentCount} comments`}>{commentCount}</span>
                         </button>
-                        <FinspoLikeButton className="favorite-button inline-flex min-h-8 w-full items-center justify-center gap-1 whitespace-nowrap rounded-lg border-0 bg-transparent px-2 py-1 text-[11px] font-bold text-foose-text transition hover:bg-foose-surface-low hover:text-accent focus:outline-none focus:ring-2 focus:ring-accent/30 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-3.5 [&.is-active]:bg-transparent [&.is-active]:text-accent" initialCount={post.likes?.length} initialLiked={user ? post.likes?.some((userId) => String(userId) === user._id) : undefined} onChange={(liked) => setLikeAnnouncement(liked ? 'Finspo liked' : 'Finspo unliked')} showCount solidIcon targetId={post._id} />
-                        <span className="contents">
-                          <button
-                            aria-disabled="true"
-                            aria-label="Share this Finspo post (coming soon)"
-                            className="inline-flex min-h-8 w-full items-center justify-center rounded-lg border-0 bg-transparent text-foose-muted transition hover:bg-foose-surface-low hover:text-foose-text focus:outline-none focus:ring-2 focus:ring-accent/30 disabled:cursor-default"
-                            title="Share coming soon"
-                            type="button"
-                          >
-                            <IoShareSocial aria-hidden className="size-4" />
-                          </button>
-                          <button
-                            aria-disabled="true"
-                            aria-label="Save this Finspo post (coming soon)"
-                            className="inline-flex min-h-8 w-full items-center justify-center rounded-lg border-0 bg-transparent text-foose-muted transition hover:bg-foose-surface-low hover:text-foose-text focus:outline-none focus:ring-2 focus:ring-accent/30 disabled:cursor-default"
-                            title="Save coming soon"
-                            type="button"
-                          >
-                            <FaBookmark aria-hidden className="size-3.5" />
-                          </button>
-                        </span>
+                        <FinspoLikeButton className="favorite-button inline-flex min-h-10 w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-foose-border bg-foose-surface px-2 py-1 text-xs font-bold text-foose-text transition hover:border-accent hover:text-accent focus:outline-none focus:ring-2 focus:ring-accent/30 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&.is-active]:border-accent [&.is-active]:bg-accent-light [&.is-active]:text-accent" initialCount={post.likes?.length} initialLiked={user ? post.likes?.some((userId) => String(userId) === user._id) : undefined} onChange={(liked) => setLikeAnnouncement(liked ? 'Finspo liked' : 'Finspo unliked')} showCount solidIcon targetId={post._id} />
                       </>
                     )}
                   </div>
@@ -311,14 +285,15 @@ export function CommunityFinspoDetailPage() {
             )}
             featuredReserveColumns={relatedRailEnabled ? 1 : 0}
             featuredWidth={focusedAreaWidth}
-            gap={relatedRailEnabled ? 12 : 8}
-            maxColumns={10}
+            gap={10}
+            maxColumns={5}
+            minColumnWidth={135}
             minColumns={2}
-            targetColumnWidth={190}
+            targetColumnWidth={220}
           >
-            {relatedPosts.map((relatedPost) => renderImageTile(relatedPost, user?._id, relatedFailedImageSet.has(relatedPost.imageUrl)))}
-            {relatedLoading && !relatedPosts.length && Array.from({ length: 12 }, (_, index) => <FinspoSkeletonTile index={index} key={`related-initial-${index}`} />)}
-            {relatedLoadingMore && Array.from({ length: 50 }, (_, index) => <FinspoSkeletonTile index={index} key={`related-loading-${index}`} />)}
+            {relatedPosts.map((relatedPost) => renderImageTile(relatedPost, user?._id))}
+            {relatedLoading && !relatedPosts.length && Array.from({ length: 12 }, (_, index) => <FinspoSkeletonTile index={index} key={`related-initial-${index}`} overlay />)}
+            {relatedLoadingMore && Array.from({ length: 12 }, (_, index) => <FinspoSkeletonTile index={index} key={`related-loading-${index}`} overlay />)}
           </FinspoMasonry>
           {relatedError && <InlineNotice action={<button className="font-black text-accent" onClick={refetchRelated} type="button">Retry suggestions</button>} className="my-4" title="Related Finspo did not load" tone="error">The focused post remains available.</InlineNotice>}
           {!relatedError && !relatedPosts.length && <StatePanel body="More Finspo posts will appear here as the community shares them." layout="compact" title="Nothing else yet" tone="empty" />}

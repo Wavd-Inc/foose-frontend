@@ -168,18 +168,30 @@ export function ListingDetailSkeleton() {
 export function EventDetailSkeleton() {
   return (
     <LoadingRegion label="Loading event details" layout="page">
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-4">
-          <SkeletonBlock className="aspect-[16/9] w-full" />
-          <SkeletonBlock className="h-8 w-4/5" />
-          <SkeletonBlock className="h-4 w-full" />
-          <SkeletonBlock className="h-4 w-5/6" />
-        </div>
-        <div className="space-y-3 rounded-xl border border-foose-border bg-foose-surface p-5">
-          <SkeletonBlock className="h-6 w-24 rounded-full" />
-          <SkeletonBlock className="h-5 w-4/5" />
-          <SkeletonBlock className="h-5 w-3/5" />
+      <div className="grid gap-7 lg:grid-cols-[minmax(0,1.13fr)_minmax(340px,.87fr)]">
+        <SkeletonBlock className="aspect-[16/11] w-full rounded-2xl lg:aspect-auto lg:h-[410px]" />
+        <div className="space-y-4 py-4">
+          <SkeletonBlock className="h-6 w-28 rounded-full" />
+          <SkeletonBlock className="h-9 w-4/5" />
+          <SkeletonBlock className="h-4 w-3/5" />
+          <div className="grid grid-cols-2 gap-4 py-2">
+            {Array.from({ length: 4 }, (_, index) => <SkeletonBlock className="h-12 w-full" key={index} />)}
+          </div>
           <SkeletonBlock className="h-11 w-full" />
+        </div>
+      </div>
+      <div className="mt-9 grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="space-y-3">
+          <SkeletonBlock className="h-6 w-40" />
+          <SkeletonBlock className="h-4 w-full max-w-xl" />
+          <SkeletonBlock className="h-4 w-3/4 max-w-lg" />
+        </div>
+        <div className="rounded-2xl border border-foose-border bg-foose-surface p-5">
+          <div className="space-y-3">
+            <SkeletonBlock className="size-11 rounded-full" />
+            <SkeletonBlock className="h-5 w-3/4" />
+            <SkeletonBlock className="h-4 w-full" />
+          </div>
         </div>
       </div>
     </LoadingRegion>

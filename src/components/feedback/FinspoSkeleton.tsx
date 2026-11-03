@@ -14,6 +14,7 @@ function Pulse({ className = '' }: { className?: string }) {
 
 type FinspoSkeletonTileProps = {
   index?: number
+  overlay?: boolean
   showAuthor?: boolean
   showMenu?: boolean
 }
@@ -26,9 +27,23 @@ type FinspoSkeletonTilesProps = {
 
 export function FinspoSkeletonTile({
   index = 0,
+  overlay = false,
   showAuthor = true,
   showMenu = false,
 }: FinspoSkeletonTileProps) {
+  if (overlay) {
+    return (
+      <article className="finspo-tile relative min-w-0 overflow-hidden rounded-2xl bg-foose-surface-mid">
+        <Pulse className={`w-full ${tileAspects[index % tileAspects.length]}`} />
+        <Pulse className="absolute right-2 top-2 size-8 rounded-full bg-foose-surface-high" />
+        <div className="absolute inset-x-0 bottom-0 space-y-2 bg-gradient-to-t from-black/35 to-transparent p-3">
+          <Pulse className="h-3 w-3/4 rounded-full bg-white/75" />
+          {showAuthor && <Pulse className="h-2.5 w-20 rounded-full bg-white/55" />}
+        </div>
+      </article>
+    )
+  }
+
   return (
     <article className="finspo-tile relative mb-3 break-inside-avoid max-md:mb-2">
       <Pulse className={`w-full ${tileAspects[index % tileAspects.length]}`} />
@@ -84,9 +99,8 @@ export function FinspoDetailSkeleton({
       <FinspoMasonry
         className="finspo-surround"
         featuredItem={(
-        <article className="finspo-detail-card finspo-focus-card relative grid min-w-0 self-start items-start gap-0 overflow-hidden rounded-xl border border-foose-border bg-foose-surface md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]" key="focused-finspo-skeleton">
-          <Pulse className="absolute left-3 top-3 z-10 hidden size-10 rounded-full bg-foose-surface-high shadow-md md:block" />
-          <Pulse className="mr-auto aspect-[4/5] w-full max-w-full rounded-t-xl md:ml-auto md:mr-0 md:rounded-none" />
+        <article className="finspo-detail-card finspo-focus-card relative grid min-w-0 self-start items-start gap-0 overflow-hidden rounded-2xl border border-foose-border/70 bg-foose-surface shadow-sm md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]" key="focused-finspo-skeleton">
+          <Pulse className="aspect-[4/5] w-full rounded-t-2xl md:aspect-auto md:h-full md:rounded-none" />
           <div className="flex h-[min(72dvh,620px)] min-h-0 flex-col overflow-hidden rounded-none border-0 bg-foose-surface p-4 shadow-none sm:p-5 md:h-[min(72dvh,680px)]">
             <div className="grid max-h-[40%] shrink-0 grid-cols-1 gap-3 overflow-hidden pb-3">
               <div className="flex min-w-0 items-center gap-2">
@@ -99,11 +113,9 @@ export function FinspoDetailSkeleton({
               <Pulse className="h-4 w-4/5 rounded-full" />
               <Pulse className="h-4 w-3/5 rounded-full" />
               <Pulse className="h-3 w-24 rounded-full" />
-              <span className="grid grid-cols-4 items-center gap-1 border-y border-foose-border py-1.5">
-                <Pulse className="h-8 w-full rounded-full" />
-                <Pulse className="h-8 w-full rounded-full" />
-                <Pulse className="h-8 w-full rounded-full" />
-                <Pulse className="h-8 w-full rounded-full" />
+              <span className="grid grid-cols-2 items-center gap-2 border-y border-foose-border py-2">
+                <Pulse className="h-10 w-full rounded-xl" />
+                <Pulse className="h-10 w-full rounded-xl" />
               </span>
             </div>
             <div className="flex min-h-0 flex-1 flex-col border-t border-foose-border pt-4">
@@ -125,12 +137,13 @@ export function FinspoDetailSkeleton({
         )}
         featuredReserveColumns={wrapFeatured ? 1 : 0}
         featuredWidth={featuredWidth}
-        gap={wrapFeatured ? 12 : 8}
-        maxColumns={10}
+        gap={10}
+        maxColumns={5}
+        minColumnWidth={135}
         minColumns={2}
-        targetColumnWidth={190}
+        targetColumnWidth={220}
       >
-        {Array.from({ length: 50 }, (_, index) => <FinspoSkeletonTile index={index} key={index} />)}
+        {Array.from({ length: 12 }, (_, index) => <FinspoSkeletonTile index={index} key={index} overlay />)}
       </FinspoMasonry>
     </section>
   )
