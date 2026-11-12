@@ -1,3 +1,4 @@
+import { SellerOnboardingLayout } from '../components/marketplace/SellerOnboardingLayout'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   ButtonLink,
@@ -6,7 +7,6 @@ import {
   FormField,
   FormPage,
   FormSection,
-  Icon,
   ImagePreviewInput,
   InlineNotice,
   LightboxImage,
@@ -17,8 +17,6 @@ import {
   TextField,
 } from '../components'
 import { FormPageSkeleton } from '../components/operational/OperationalStates'
-import { NavigationBackButton } from '../components/navigation'
-import { getAppName } from '../config/env'
 import { useApiResource } from '../hooks/useApiResource'
 import { useAuth } from '../hooks/useAuth'
 import { apiPost, apiPut } from '../lib/api'
@@ -87,7 +85,7 @@ function KycForm({ kyc, onSaved, user }: { kyc: KycRecord; onSaved: () => Promis
   const idNoError = attemptedStep === 0 && idNo.trim().length < 2 ? 'Enter your ID number.' : ''
   const dobError = attemptedStep === 0 && !dob ? 'Enter your date of birth.' : ''
   const idImageError = attemptedStep === 1 && !isResubmit && !idFiles.length ? 'Add a clear photo of your ID.' : ''
-  const selfieError = attemptedStep === 1 && !isResubmit && !selfieFiles.length ? 'Add a clear selfie of your face.' : ''
+  const selfieError = attemptedStep === 2 && !isResubmit && !selfieFiles.length ? 'Add a clear selfie of your face.' : ''
 
   function goToStep(next: number) {
     setAttemptedStep(null)
@@ -104,16 +102,16 @@ function KycForm({ kyc, onSaved, user }: { kyc: KycRecord; onSaved: () => Promis
   }
 
   function continueFromDocuments() {
-    setAttemptedStep(1)
-    if (!isResubmit && (!idFiles.length || !selfieFiles.length)) {
+    setAttemptedStep(2)
+    if (!isResubmit && !selfieFiles.length) {
       return
     }
-    goToStep(2)
+    goToStep(3)
   }
 
   async function submitKyc(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (submitting || step !== 2) return
+    if (submitting || step !== 3) return
 
     const formData = new FormData()
     appendValue(formData, 'idType', idType)
@@ -141,12 +139,12 @@ function KycForm({ kyc, onSaved, user }: { kyc: KycRecord; onSaved: () => Promis
       description={isResubmit
         ? "A couple of details need another look before your DigiShop can go live. Update them below and send them back for review."
         : "Seller verification unlocks selling on Foose."}
-      eyebrow={`Step ${step + 1} of 3`}
+      eyebrow={`Step ${step + 1} of 4`}
       title={isResubmit ? 'Update your verification' : 'Verify your identity'}
       width="standard"
     >
       <form aria-busy={submitting} className="grid gap-6" encType="multipart/form-data" onSubmit={(event) => void submitKyc(event)}>
-        <StepIndicator current={step} label="Verification progress" onStepChange={(next) => { if (next < step) goToStep(next) }} steps={['You', 'Photos', 'Review']} />
+        <StepIndicator current={step} label="Verification progress" onStepChange={(next) => { if (next < step) goToStep(next) }} steps={['You', 'ID photo', 'Selfie', 'Review']} />
         <h2 className="sr-only" ref={headingRef} tabIndex={-1}>{step === 0 ? 'About you' : step === 1 ? 'Photos' : 'Review your details'}</h2>
 
         {isResubmit && kyc.rejectionReason && (
@@ -187,6 +185,8 @@ function KycForm({ kyc, onSaved, user }: { kyc: KycRecord; onSaved: () => Promis
             presentation="preview"
             required={!isResubmit}
           />
+        </FormSection>
+        <FormSection className={step === 2 ? '' : 'hidden'} title="A clear photo of you" description="Make sure your face is clearly visible in good lighting.">
           <ImagePreviewInput
             accept={ACCEPT_IMAGES}
             aspect="4 / 3"
@@ -203,7 +203,7 @@ function KycForm({ kyc, onSaved, user }: { kyc: KycRecord; onSaved: () => Promis
           />
         </FormSection>
 
-        <FormSection className={step === 2 ? '' : 'hidden'} description="Take a quick look before you send this off." title="Review your details">
+        <FormSection className={step === 3 ? '' : 'hidden'} description="Take a quick look before you send this off." title="Review your details">
           <dl className="grid gap-4 rounded-xl bg-foose-surface-low p-4 text-sm sm:grid-cols-2">
             <div><dt className="font-semibold text-foose-muted">ID type</dt><dd className="mt-1 font-bold text-foose-text">{idType}</dd></div>
             <div><dt className="font-semibold text-foose-muted">ID number</dt><dd className="mt-1 font-bold text-foose-text">{idNo}</dd></div>
@@ -232,6 +232,7 @@ function KycForm({ kyc, onSaved, user }: { kyc: KycRecord; onSaved: () => Promis
               )}
             </div>
           </div>
+          <button className="min-h-11 text-sm font-bold text-accent" onClick={() => goToStep(0)} type="button">Edit identity details</button>
           <InlineNotice tone="info">By submitting, you’re confirming these details are accurate and agreeing to let us use them to verify your identity.</InlineNotice>
           {error && <InlineNotice title="Verification was not submitted" tone="error">{error}</InlineNotice>}
         </FormSection>
@@ -239,8 +240,9 @@ function KycForm({ kyc, onSaved, user }: { kyc: KycRecord; onSaved: () => Promis
         <FormActions bottomNavInset={false} sticky>
           {step > 0 && <button className="inline-flex min-h-12 items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-5 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" disabled={submitting} onClick={() => goToStep(step - 1)} type="button">Back</button>}
           {step === 0 && <button className="inline-flex min-h-12 items-center justify-center rounded-xl border border-accent bg-accent px-5 text-sm font-bold text-white hover:bg-accent-hover" onClick={continueFromIdentity} type="button">Continue to photos</button>}
-          {step === 1 && <button className="inline-flex min-h-12 items-center justify-center rounded-xl border border-accent bg-accent px-5 text-sm font-bold text-white hover:bg-accent-hover" onClick={continueFromDocuments} type="button">Review details</button>}
-          {step === 2 && <SubmitButton loading={submitting} loadingLabel="Submitting verification…">{isResubmit ? 'Resubmit verification' : 'Submit verification'}</SubmitButton>}
+          {step === 1 && <button className="inline-flex min-h-12 items-center justify-center rounded-xl border border-accent bg-accent px-5 text-sm font-bold text-white hover:bg-accent-hover" onClick={() => { setAttemptedStep(1); if (isResubmit || idFiles.length) goToStep(2) }} type="button">Continue to selfie</button>}
+          {step === 2 && <button className="min-h-12 rounded-xl bg-accent px-5 font-bold text-white" onClick={continueFromDocuments} type="button">Review details</button>}
+          {step === 3 && <SubmitButton loading={submitting} loadingLabel="Submitting verification…">{isResubmit ? 'Resubmit verification' : 'Submit verification'}</SubmitButton>}
         </FormActions>
       </form>
     </FormPage>
@@ -249,31 +251,18 @@ function KycForm({ kyc, onSaved, user }: { kyc: KycRecord; onSaved: () => Promis
 
 export function KycPage() {
   const { user } = useAuth()
-  const brand = getAppName()
   const resource = useApiResource<{ kyc: KycRecord }>('/kyc/me')
+  const [started, setStarted] = useState(false)
   const record = resource.data?.kyc
 
   return (
-    <div className="flow-page min-h-dvh bg-foose-bg">
-      <header className="flow-top flex min-h-16 items-center justify-between gap-3 border-b border-white/15 bg-accent px-4 py-3 text-white md:px-8">
-        <div className="flex items-center gap-2">
-          <NavigationBackButton
-            className="bg-white/10 text-white shadow-none hover:bg-white/20 hover:text-white focus-visible:ring-white focus-visible:ring-offset-accent"
-            fallback={{ href: '/profile', label: 'Profile' }}
-            variant="icon"
-          />
-          <a className="hidden font-display text-lg font-semibold sm:inline" href="/">{brand}</a>
-        </div>
-        <span className="text-sm font-semibold">Verify to start selling</span>
-        <span aria-hidden className="grid size-11 place-items-center rounded-full bg-white/10"><Icon name="shield" /></span>
-      </header>
-      <main>
+    <SellerOnboardingLayout milestone={record?.status === 'pending' || record?.status === 'approved' ? 1 : 0}>
         {resource.initialLoading && <FormPageSkeleton label="Loading your verification" media />}
         {resource.error && !record && <StatePanel action={<button className="button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-center text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 [&.full]:w-full button-secondary border-foose-border bg-foose-surface text-foose-text hover:border-accent hover:text-accent" onClick={() => void resource.refetch()} type="button">Try again</button>} body={resource.error} layout="page" title="We couldn't load your verification" tone="error" />}
         {record?.status === 'approved' && <StatePanel action={<ButtonLink to="/open-shop">Open DigiShop</ButtonLink>} body="Nice — you're all set. You can now open and manage a DigiShop." layout="page" title="You're verified" tone="success" />}
         {record?.status === 'pending' && <StatePanel body="We're checking your details now — we'll let you know as soon as a decision is ready." layout="page" title="We're reviewing your documents" tone="info" />}
-        {record && ['not_submitted', 'rejected'].includes(record.status) && <KycForm key={`${record.status}:${record.submissionCount || 0}`} kyc={record} onSaved={resource.refetch} user={user} />}
-      </main>
-    </div>
+        {record?.status === 'not_submitted' && !started && <FormPage eyebrow="Your seller journey" title="Your finds. Your DigiShop." description="Verify your identity, then create a home for your thrift finds on Foose."><FormSection title="What you’ll need"><p className="text-sm leading-7 text-foose-muted">Have your Ghana Card, passport or driving license and a clear selfie ready. Foose reviews your submission before shop setup unlocks.</p><button className="min-h-12 rounded-xl bg-accent px-5 font-bold text-white" onClick={() => setStarted(true)} type="button">Get verified</button></FormSection></FormPage>}
+        {record && (record.status === 'rejected' || (record.status === 'not_submitted' && started)) && <KycForm key={`${record.status}:${record.submissionCount || 0}`} kyc={record} onSaved={resource.refetch} user={user} />}
+    </SellerOnboardingLayout>
   )
 }

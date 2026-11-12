@@ -1,3 +1,5 @@
+import { GHANA_BANKS } from '../utils/ghanaBanks'
+import { SellerOnboardingLayout } from '../components/marketplace/SellerOnboardingLayout'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { ButtonLink, Icon, ImagePreviewInput, InlineNotice, SelectControl, StatePanel, StepIndicator } from '../components'
 import { ChoiceCardGroup, ErrorSummary, SubmitButton } from '../components/forms/FormControls'
@@ -5,8 +7,6 @@ import { FormField, TextAreaField, TextField } from '../components/forms/FormFie
 import { FormActions, FormPage, FormSection } from '../components/forms/FormLayout'
 import { UnsavedChangesGuard } from '../components/forms/UnsavedChangesGuard'
 import { useLocalDraft } from '../components/forms/useLocalDraft'
-import { NavigationBackButton } from '../components/navigation'
-import { getAppName } from '../config/env'
 import { useAuth } from '../hooks/useAuth'
 import { apiPost } from '../lib/api'
 import type { Shop } from '../types/api'
@@ -29,25 +29,6 @@ function appendSelectedFile(formData: FormData, form: HTMLFormElement, name: str
   if (file && file.name && file.size > 0) formData.append(name, file)
 }
 
-function ShopSetupHeader() {
-  const brand = getAppName()
-
-  return (
-    <header className="flow-top grid h-16 grid-cols-[1fr_auto_1fr] items-center border-b border-white/15 bg-gradient-to-r from-accent to-accent-strong px-4 text-white shadow-md shadow-accent/15 md:px-8">
-      <div className="flex items-center gap-2">
-        <NavigationBackButton
-          className="bg-white/10 text-white shadow-none hover:bg-white/20 hover:text-white focus-visible:ring-white focus-visible:ring-offset-accent"
-          fallback={{ href: '/profile', label: 'Profile' }}
-          variant="icon"
-        />
-        <a className="hidden font-display text-lg font-semibold sm:inline" href="/">{brand}</a>
-      </div>
-      <span className="text-center text-sm font-bold sm:text-base">Set up your shop</span>
-      <span aria-hidden className="grid size-11 place-items-center justify-self-end rounded-full bg-white/10"><Icon name="star" /></span>
-    </header>
-  )
-}
-
 export function OpenShopPage() {
   const { refreshUser, user } = useAuth()
   const kycStatus = user?.kycId && typeof user.kycId === 'object' ? user.kycId.status : undefined
@@ -60,6 +41,7 @@ export function OpenShopPage() {
   const [regionTouched, setRegionTouched] = useState(false)
   const [bio, setBio] = useState('')
   const [category, setCategory] = useState('both')
+  const [payoutMethod, setPayoutMethod] = useState('mobile_money')
   const [step, setStep] = useState(0)
   const [validationAttempt, setValidationAttempt] = useState(0)
   const [submitting, setSubmitting] = useState(false)
@@ -97,6 +79,20 @@ export function OpenShopPage() {
     if (user?.hasShop) navigateTo('/manage-shop')
   }, [user?.hasShop])
 
+  function validatePayout(form: HTMLFormElement) {
+    for (const name of ['payoutAccountName', payoutMethod === 'mobile_money' ? 'payoutProvider' : 'payoutBankName', 'payoutAccountNumber']) {
+      const field = form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | null
+      if (!field?.value.trim()) {
+        setStep(2)
+        setError('Enter the account name, select a provider or bank, and enter the account number before continuing.')
+        window.requestAnimationFrame(() => { field?.focus(); field?.reportValidity() })
+        return false
+      }
+    }
+    setError('')
+    return true
+  }
+
   async function createShop(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!canSubmit) {
@@ -108,6 +104,7 @@ export function OpenShopPage() {
       return
     }
     const form = event.currentTarget
+    if (!validatePayout(form)) return
     const sourceData = new FormData(form)
     const formData = new FormData()
     appendText(formData, 'shopName', sourceData.get('shopName'))
@@ -139,6 +136,7 @@ export function OpenShopPage() {
   }
 
   function continueSetup() {
+    if (step === 2 && !validatePayout(document.getElementById('shop-setup-form') as HTMLFormElement)) return
     if (step === 0 && !shopNameValid) {
       setShopNameTouched(true)
       setValidationAttempt((attempt) => attempt + 1)
@@ -158,8 +156,7 @@ export function OpenShopPage() {
   if (!user?.isKycVerified) {
     const kycPending = kycStatus === 'pending'
     return (
-      <div className="flow-page min-h-dvh bg-foose-bg">
-        <ShopSetupHeader />
+      <SellerOnboardingLayout milestone={kycPending ? 1 : 0}>
         <main className="flow-content mx-auto w-full max-w-5xl px-4 py-8 [&.narrow]:max-w-3xl narrow">
           <StatePanel
             action={<ButtonLink to="/kyc">{kycPending ? 'View status' : 'Get verified'}</ButtonLink>}
@@ -171,14 +168,13 @@ export function OpenShopPage() {
             tone="permission"
           />
         </main>
-      </div>
+      </SellerOnboardingLayout>
     )
   }
 
   return (
-    <div className="flow-page min-h-dvh bg-foose-bg">
-      <ShopSetupHeader />
-      <main className="flow-content w-full">
+    <SellerOnboardingLayout milestone={step < 2 ? 2 : step === 2 ? 3 : 4}>
+      <div className="flow-content w-full">
         <FormPage description="Create your shop identity, location, payout destination, and brand in four short steps." eyebrow={`Step ${step + 1} of 4`} title="Open your DigiShop" width="standard">
           <UnsavedChangesGuard when={dirty && !submitting} />
           {draft.hasRecoverableDraft && (
@@ -201,7 +197,7 @@ export function OpenShopPage() {
             steps={['Identity', 'Location', 'Payout', 'Brand']}
           />
 
-          <form className="space-y-5" encType="multipart/form-data" noValidate onSubmit={(event) => void createShop(event)}>
+          <form id="shop-setup-form" className="space-y-5" encType="multipart/form-data" noValidate onSubmit={(event) => void createShop(event)}>
             <ErrorSummary
               errors={validationErrors.filter((item) => step === 0 ? item.fieldId === 'shop-name' : step === 1 ? item.fieldId !== 'shop-name' : step === 3)}
               focus={validationAttempt > 0}
@@ -271,16 +267,21 @@ export function OpenShopPage() {
             <div hidden={step !== 2}>
               <FormSection columns={2} description="Foose uses this destination after escrow releases. For your security, payout values are never saved in local drafts." title="Funds collection method">
                 <FormField htmlFor="payout-method" label="Method">
-                  <SelectControl defaultValue="mobile_money" id="payout-method" name="payoutMethodType">
+                  <SelectControl value={payoutMethod} onChange={(event) => setPayoutMethod(event.target.value)} id="payout-method" name="payoutMethodType">
                     <option value="mobile_money">Mobile money</option>
                     <option value="bank_transfer">Bank transfer</option>
                   </SelectControl>
                 </FormField>
-                <TextField autoComplete="name" defaultValue={user?.name || ''} id="payout-name" label="Account name" name="payoutAccountName" optional placeholder="Registered account name" />
-                <TextField id="payout-provider" label="Provider" name="payoutProvider" optional placeholder="MTN, Telecel, AirtelTigo, bank…" />
-                <TextField autoComplete="tel" defaultValue={user?.phone || ''} id="payout-number" inputMode="tel" label="Account or phone number" name="payoutAccountNumber" onBlur={(event) => { event.currentTarget.value = normalizePhone(event.currentTarget.value) }} optional placeholder="0240000000" />
-                <TextField id="payout-bank" label="Bank name" name="payoutBankName" optional placeholder="For bank transfer" />
-                <TextField id="payout-branch" label="Branch" name="payoutBranch" optional />
+                <TextField autoComplete="name" defaultValue={user?.name || ''} id="payout-name" label="Account name" name="payoutAccountName" required placeholder="Registered account name" />
+                <FormField htmlFor="payout-provider" label={payoutMethod === 'mobile_money' ? 'Provider' : 'Bank'} required>
+                  <SelectControl required key={payoutMethod} defaultValue="" id="payout-provider" name={payoutMethod === 'mobile_money' ? 'payoutProvider' : 'payoutBankName'}>
+                    <option value="">{payoutMethod === 'mobile_money' ? 'Select provider' : 'Select bank'}</option>
+                    {(payoutMethod === 'mobile_money' ? ['MTN', 'Telecel', 'AirtelTigo'] : GHANA_BANKS).map((provider) => <option key={provider} value={provider}>{provider}</option>)}
+                  </SelectControl>
+                </FormField>
+                <TextField key={`number-${payoutMethod}`} autoComplete={payoutMethod === 'mobile_money' ? 'tel' : 'off'} defaultValue={payoutMethod === 'mobile_money' ? user?.phone || '' : ''} id="payout-number" inputMode={payoutMethod === 'mobile_money' ? 'tel' : 'numeric'} label={payoutMethod === 'mobile_money' ? 'Phone number' : 'Account number'} name="payoutAccountNumber" onBlur={(event) => { if (payoutMethod === 'mobile_money') event.currentTarget.value = normalizePhone(event.currentTarget.value) }} required placeholder={payoutMethod === 'mobile_money' ? '0240000000' : 'Bank account number'} />
+                {payoutMethod === 'bank_transfer' && <TextField id="payout-branch" label="Branch" name="payoutBranch" optional />}
+
               </FormSection>
             </div>
 
@@ -314,7 +315,7 @@ export function OpenShopPage() {
             </FormActions>
           </form>
         </FormPage>
-      </main>
-    </div>
+      </div>
+    </SellerOnboardingLayout>
   )
 }

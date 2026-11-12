@@ -1,0 +1,26 @@
+// Bank of Ghana registered Banks directory, checked 2026-11-12.
+// The directory has no explicit as-of date; this is not a historical November snapshot.
+// https://www.bog.gov.gh/supervision-regulation/registered-institutions/banks/
+export const GHANA_BANKS = ['Absa Bank Ghana LTD',
+  'Access Bank (Ghana) Plc',
+  'Agricultural Development Bank Plc',
+  'Bank of Africa Ghana Limited',
+  'CalBank PLC',
+  'Consolidated Bank Ghana Limited',
+  'Ecobank Ghana Plc',
+  'Fidelity Bank (Ghana) LTD',
+  'First Atlantic Bank PLC',
+  'First Bank (Ghana) LTD',
+  'First National Bank (Ghana) Limited',
+  'GCB Bank Plc',
+  'Guaranty Trust Bank (Ghana) LTD',
+  'National Investment Bank PLC',
+  'OmniBSIC Bank Ghana LTD',
+  'Prudential Bank Limited',
+  'Republic Bank (Ghana) PLC',
+  'Societe General Ghana Plc',
+  'Stanbic Bank Ghana Limited',
+  'Standard Chartered Bank Ghana Plc',
+  'United Bank for Africa (Ghana) Limited',
+  'Universal Merchant Bank Ghana LTD',
+  'Zenith Bank (Ghana) Limited'] as const
