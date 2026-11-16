@@ -215,7 +215,8 @@ export function AdminKycDetailPage() {
             </div>
 
             <section className="kyc-documents grid gap-6">
-              <DocumentPreview title="Submitted ID document" url={kyc.idImgUrl} />
+              <DocumentPreview title="ID front / photo page" url={kyc.idImgUrl} />
+              <DocumentPreview title="ID back" url={kyc.idBackImgUrl} />
               <DocumentPreview title="Submitted selfie" url={kyc.selfieImgUrl} />
             </section>
 

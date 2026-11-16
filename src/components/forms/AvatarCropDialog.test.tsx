@@ -17,6 +17,7 @@ class MockImage {
 describe('AvatarCropDialog', () => {
   const context = {
     clearRect: vi.fn(),
+    fillRect: vi.fn(),
     drawImage: vi.fn(),
     imageSmoothingEnabled: false,
     imageSmoothingQuality: 'low',
@@ -72,6 +73,35 @@ describe('AvatarCropDialog', () => {
     expect(output.type).toBe('image/jpeg')
     expect(output.name).toBe('portrait-avatar.jpg')
     expect(HTMLCanvasElement.prototype.toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/jpeg', 0.92)
+  })
+
+  it('restores the applied crop from its original source after reopening', async () => {
+    const onApply = vi.fn()
+    const source = new File(['source'], 'id.png', { type: 'image/png' })
+    const view = render(<AvatarCropDialog open initialFile={source} onApply={onApply} onCancel={vi.fn()} />)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply photo' })).toBeEnabled())
+    fireEvent.change(screen.getByLabelText('Zoom image'), { target: { value: '2' } })
+    fireEvent.keyDown(screen.getByRole('img', { name: 'Profile photo crop area' }), { key: 'ArrowRight' })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply photo' }))
+    await waitFor(() => expect(onApply).toHaveBeenCalledOnce())
+    const saved = onApply.mock.calls[0][1]
+    expect(saved.sourceFile).toBe(source)
+    expect(saved.cropState).toEqual({ pan: { x: 8, y: 0 }, zoom: 2 })
+    view.unmount()
+    render(<AvatarCropDialog open initialFile={saved.sourceFile} initialCrop={saved.cropState} onApply={vi.fn()} onCancel={vi.fn()} />)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply photo' })).toBeEnabled())
+    expect(screen.getByLabelText('Zoom image')).toHaveValue('2')
+    expect(context.drawImage).toHaveBeenLastCalledWith(expect.anything(), -504, -256, 1536, 1024)
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
+    expect(screen.getByLabelText('Zoom image')).toHaveValue('1')
+    expect(saved.cropState.zoom).toBe(2)
+  })
+
+  it('fits the whole ID into a padded rectangular output', async () => {
+    render(<AvatarCropDialog open imageFit="contain" outputWidth={1590} outputHeight={1000} initialFile={new File(['id'], 'id.png', { type: 'image/png' })} onApply={vi.fn()} onCancel={vi.fn()} />)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply photo' })).toBeEnabled())
+    expect(context.fillRect).toHaveBeenCalledWith(0, 0, 1590, 1000)
+    expect(context.drawImage).toHaveBeenLastCalledWith(expect.anything(), 45, 0, 1500, 1000)
   })
 
   it('creates a wide crop using the requested banner dimensions', async () => {

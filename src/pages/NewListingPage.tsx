@@ -504,11 +504,10 @@ export function NewListingPage() {
             <p className="text-xs font-black uppercase tracking-[0.14em] text-accent">Listing preview</p>
             <h2 className="mt-3 font-display text-2xl font-semibold text-foose-text">{titleValue || 'Your listing title'}</h2>
             <p className="mt-2 text-xl font-black text-accent">{priceValue ? `GHS ${priceValue}` : 'Add a price'}</p>
-            <p className="mt-3 line-clamp-4 text-sm leading-6 text-foose-muted">{descriptionValue || 'Your description will appear here as you build the listing.'}</p>
+            <p className="mt-3 line-clamp-4 text-sm leading-6 text-foose-muted">{descriptionValue}</p>
             <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold text-foose-muted"><span className="rounded-full bg-accent-light px-3 py-1.5">{listingType}</span>{categoryValue && <span className="rounded-full bg-foose-surface-low px-3 py-1.5">{categoryValue}</span>}{subcategoryValue && <span className="rounded-full bg-foose-surface-low px-3 py-1.5">{subcategoryValue}</span>}</div>
           </div>
         )}
-        description={editId ? 'Update the listing details buyers see. All sections stay available on this page.' : 'Build a clear, trustworthy marketplace listing in three short steps.'}
         eyebrow={(
           <NavigationBackButton fallback={returnFallback} />
         )}
@@ -520,31 +519,31 @@ export function NewListingPage() {
             current={step}
             label="Listing creation progress"
             onStepChange={(index) => { if (index < step) setStep(index) }}
-            steps={['Details & media', 'Pricing', 'Review']}
+            steps={['Details', 'Pricing', 'Review']}
           />
         )}
 
         <form className="space-y-5" encType="multipart/form-data" noValidate onSubmit={(event) => void createListing(event)}>
           <UnsavedChangesGuard when={dirty && !submitting} />
           {draft.hasRecoverableDraft && (
-            <InlineNotice action={<div className="flex gap-2"><button className="min-h-11 rounded-lg px-3 font-black text-accent hover:bg-accent-light" onClick={handleResumeDraft} type="button">Resume</button><button className="min-h-11 rounded-lg px-3 font-black text-foose-muted hover:bg-foose-surface-low" onClick={handleDiscardDraft} type="button">Discard</button></div>} title="Continue your listing draft?">{null}</InlineNotice>
+            <InlineNotice action={<div className="flex gap-2"><button className="min-h-11 rounded-lg px-3 font-black text-accent hover:bg-accent-light" onClick={handleResumeDraft} type="button">Resume</button><button className="min-h-11 rounded-lg px-3 font-black text-foose-muted hover:bg-foose-surface-low" onClick={handleDiscardDraft} type="button">Discard</button></div>} title="Resume listing draft?">{null}</InlineNotice>
           )}
           <ErrorSummary errors={validationAttempt ? validationErrors : []} focus={validationAttempt > 0} />
 
-          <FormSection className={!editId && step !== 0 ? 'hidden' : ''} columns={2} description="Add clear photos and the essential information shoppers need to understand the item." title="Details and media">
+          <FormSection className={!editId && step !== 0 ? 'hidden' : ''} columns={2} title="Photos & details">
             <div className="form-field-wide">
-              <ImagePreviewInput accept={ACCEPT_IMAGES} aspect="square" existingImages={listing?.images || []} hint={editId ? 'Images stay in the order added. You can keep, remove, or add up to six.' : 'Images stay in the order added. Save as draft to store selected images securely.'} keptName="keptImages" keptTouchedName="keptImagesTouched" label="Listing images" maxFiles={6} multiple name="images" onFilesChange={handleSelectedFilesChange} presentation="strip" />
+              <ImagePreviewInput accept={ACCEPT_IMAGES} aspect="square" existingImages={listing?.images || []} hint="Up to 6 photos, in upload order. Save a draft to keep them." keptName="keptImages" keptTouchedName="keptImagesTouched" label="Listing images" maxFiles={6} multiple name="images" onFilesChange={handleSelectedFilesChange} presentation="strip" />
             </div>
             <TextField error={titleInvalid ? 'Enter at least 2 characters.' : undefined} id="listing-title" label="Title" name="title" onBlur={() => setTouched((current) => ({ ...current, title: true }))} onChange={(event) => setTitleValue(event.target.value)} placeholder="Vintage bomber jacket" required value={titleValue} wrapperClassName="form-field-wide" />
-            <TextAreaField id="listing-description" label="Description" maxLength={LISTING_DESCRIPTION_MAX} name="description" onChange={(event) => setDescriptionValue(event.target.value)} optional placeholder="Condition, fit, measurements, and pickup notes" rows={5} value={descriptionValue} wrapperClassName="form-field-wide" />
+            <TextAreaField id="listing-description" label="Description" maxLength={LISTING_DESCRIPTION_MAX} name="description" onChange={(event) => setDescriptionValue(event.target.value)} optional placeholder="Condition, fit, measurements or pickup details" rows={3} value={descriptionValue} wrapperClassName="form-field-wide" />
             <div className="form-field-wide"><HashtagInput initialTags={hashtags} label="Vibe hashtags" name="hashtags" onChange={setHashtags} /></div>
-            <FormField hint={listingType === 'retail' ? 'Retail listings are single items.' : 'Wholesale listings are sold as a single bale, priced and graded as one lot.'} htmlFor="listing-type" label="Listing type" required>
+            <FormField hint={listingType === 'wholesale' ? 'Price and grade apply to the whole bale.' : undefined} htmlFor="listing-type" label="Listing type" required>
               <SelectControl className={listingSelectControl} id="listing-type" name="type" onChange={(event) => changeListingType(event.target.value as 'retail' | 'wholesale')} required value={listingType}><option value="retail">Retail</option><option value="wholesale">Wholesale</option></SelectControl>
             </FormField>
           </FormSection>
 
-          <FormSection className={!editId && step !== 1 ? 'hidden' : ''} columns={2} description="Set the price and attributes buyers use to compare and filter products." title="Pricing and attributes">
-            <TextField error={priceInvalid ? 'Enter a valid amount, like 240.00.' : undefined} hint="Use up to two decimal places." id="listing-price" inputMode="decimal" label="Price (GHS)" name="price" onBlur={() => setTouched((current) => ({ ...current, price: true }))} onChange={(event) => setPriceValue(event.target.value)} placeholder="240.00" prefix="GHS" required value={priceValue} />
+          <FormSection className={!editId && step !== 1 ? 'hidden' : ''} columns={2} title="Price & attributes">
+            <TextField error={priceInvalid ? 'Enter a valid amount, like 240.00.' : undefined} id="listing-price" inputMode="decimal" label="Price (GHS)" name="price" onBlur={() => setTouched((current) => ({ ...current, price: true }))} onChange={(event) => setPriceValue(event.target.value)} placeholder="240.00" prefix="GHS" required value={priceValue} />
             <FormField error={categoryInvalid ? 'Choose a category.' : undefined} htmlFor="listing-category" label="Category" required>
               <SelectControl className={listingSelectControl} id="listing-category" name="category" onChange={(event) => changeCategorySelection(event.target.value, '')} required value={categoryValue}>
                 <option value="">Select category</option>
@@ -584,16 +583,16 @@ export function NewListingPage() {
             {showsField('pattern') && <FormField htmlFor="listing-pattern" label="Pattern" optional><SelectControl className={listingSelectControl} id="listing-pattern" onChange={(event) => changeAttribute('pattern', event.target.value)} value={attributeValues.pattern || ''}><option value="">Select pattern</option>{taxonomyOptions(LISTING_PATTERNS)}</SelectControl></FormField>}
             {showsField('baleGrade') && <FormField error={baleGradeInvalid ? 'Choose a bale grade.' : undefined} htmlFor="listing-bale-grade" label="Bale grade" required><SelectControl className={listingSelectControl} id="listing-bale-grade" onChange={(event) => changeAttribute('baleGrade', event.target.value)} required value={attributeValues.baleGrade || ''}><option value="">Select grade</option>{taxonomyOptions(LISTING_BALE_GRADES)}</SelectControl></FormField>}
             {listingType !== 'wholesale' && (
-              <FormField hint="Choose up to five colors. Multi can only be selected on its own." htmlFor="listing-color" label="Colors" labelId="listing-color-label">
+              <FormField hint="Up to 5 colors, or Multi on its own." htmlFor="listing-color" label="Colors" labelId="listing-color-label">
                 <ListingColorPicker onChange={setColorValues} value={colorValues} />
               </FormField>
             )}
-            {needsFlawProof && <TextAreaField className="border-foose-warning/30 bg-foose-warning-bg" hint="Fair or poor items need an image showing the flaw. This note is appended to the description." id="listing-flaw" label="Flaw note for escrow review" name="flawNote" onChange={(event) => setFlawNoteValue(event.target.value)} placeholder="Small stain on the left sleeve, shown in photo 2." required rows={3} value={flawNoteValue} wrapperClassName="form-field-wide rounded-xl bg-foose-warning-bg p-4" />}
+            {needsFlawProof && <TextAreaField className="border-foose-warning/30 bg-foose-warning-bg" hint="Show the flaw in a photo. This note is added to your description." id="listing-flaw" label="Flaw details" name="flawNote" onChange={(event) => setFlawNoteValue(event.target.value)} placeholder="Small stain on the left sleeve, shown in photo 2." required rows={3} value={flawNoteValue} wrapperClassName="form-field-wide rounded-xl bg-foose-warning-bg p-4" />}
             {listingType === 'wholesale' && <TextField error={bulkWeightInvalid ? 'Enter the bale weight.' : undefined} id="listing-weight" label="Weight (Kg)" name="bulkWeight" onChange={(event) => setBulkWeightValue(event.target.value)} placeholder="25kg" required value={bulkWeightValue} />}
             <ChoiceCardGroup<'yes' | 'no'>
               className="form-field-wide"
               error={validationAttempt > 0 && bargainingMissing ? 'Choose whether buyers can send you offers.' : undefined}
-              hint="Bargaining happens with each buyer in your inbox. A price you agree applies only to that buyer — everyone else still pays the listed price."
+              hint="Negotiate in your inbox. Agreed prices apply only to that buyer."
               id="listing-bargaining"
               label="Allow bargaining"
               name="bargainingAllowedChoice"
@@ -608,7 +607,7 @@ export function NewListingPage() {
             {bargainingValue === 'yes' && (
               <TextField
                 error={minAcceptableInvalid ? 'Enter an amount above zero and no higher than your listed price.' : undefined}
-                hint="Only you see this. Buyers who offer less are warned, but their offer still reaches you."
+                hint="Private. Lower offers are flagged, but still reach you."
                 id="listing-min-price"
                 inputMode="decimal"
                 label="Lowest price you would accept (GHS)"
@@ -621,7 +620,7 @@ export function NewListingPage() {
             )}
           </FormSection>
 
-          {!editId && <FormSection className={step !== 2 ? 'hidden' : ''} description="Check the core details before publishing. You can go back without losing your entries." title="Review and publish"><div className="rounded-2xl bg-accent-light/50 p-5"><h3 className="font-display text-2xl font-semibold text-foose-text">{titleValue || 'Untitled listing'}</h3><p className="mt-2 text-xl font-black text-accent">{priceValue ? `GHS ${priceValue}` : 'Price missing'}</p><dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2"><div><dt className="font-bold text-foose-faint">Format</dt><dd className="mt-1 font-semibold capitalize text-foose-text">{listingType}</dd></div><div><dt className="font-bold text-foose-faint">Category</dt><dd className="mt-1 flex items-center gap-1 font-semibold text-foose-text">{categoryValue || 'Not specified'}{subcategoryValue && <><FaAngleRight aria-hidden className="shrink-0 text-foose-faint" size={12} />{subcategoryValue}</>}</dd></div>{Object.entries(pruneListingAttributes(categoryValue, attributeValues, subcategoryValue, listingType)).map(([name, value]) => <div key={name}><dt className="font-bold text-foose-faint">{optionLabel(name)}</dt><dd className="mt-1 font-semibold text-foose-text">{optionLabel(String(value))}</dd></div>)}<div className="sm:col-span-2"><dt className="font-bold text-foose-faint">Images selected</dt><dd className="mt-1">{selectedPreviews.length ? <div className="flex flex-wrap gap-2">{selectedPreviews.map((item, index) => <div className="size-16 shrink-0 overflow-hidden rounded-lg border border-foose-border bg-foose-surface-mid sm:size-20 [&_img]:h-full [&_img]:w-full [&_img]:object-cover" key={item.url}><LightboxImage alt={`Listing photo ${index + 1}`} index={index} items={selectedPreviews.map((preview, previewIndex) => ({ alt: `Listing photo ${previewIndex + 1}`, src: preview.url }))} src={item.url} /></div>)}</div> : <span className="font-semibold text-foose-text">No images selected</span>}</dd></div><div className="sm:col-span-2"><dt className="font-bold text-foose-faint">Hashtags</dt><dd className="mt-1">{hashtags.length ? <div className="flex flex-wrap gap-2">{hashtags.map((tag) => <span className="rounded-full bg-accent-light px-3 py-1.5 text-xs font-bold text-accent" key={tag}>#{tag}</span>)}</div> : <span className="font-semibold text-foose-text">No hashtags added</span>}</dd></div></dl></div></FormSection>}
+          {!editId && <FormSection className={step !== 2 ? 'hidden' : ''} title="Review & publish"><div className="rounded-2xl bg-accent-light/50 p-5"><h3 className="font-display text-2xl font-semibold text-foose-text">{titleValue || 'Untitled listing'}</h3><p className="mt-2 text-xl font-black text-accent">{priceValue ? `GHS ${priceValue}` : 'Price missing'}</p><dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2"><div><dt className="font-bold text-foose-faint">Format</dt><dd className="mt-1 font-semibold capitalize text-foose-text">{listingType}</dd></div><div><dt className="font-bold text-foose-faint">Category</dt><dd className="mt-1 flex items-center gap-1 font-semibold text-foose-text">{categoryValue || 'Not specified'}{subcategoryValue && <><FaAngleRight aria-hidden className="shrink-0 text-foose-faint" size={12} />{subcategoryValue}</>}</dd></div>{Object.entries(pruneListingAttributes(categoryValue, attributeValues, subcategoryValue, listingType)).map(([name, value]) => <div key={name}><dt className="font-bold text-foose-faint">{optionLabel(name)}</dt><dd className="mt-1 font-semibold text-foose-text">{optionLabel(String(value))}</dd></div>)}<div className="sm:col-span-2"><dt className="font-bold text-foose-faint">Photos</dt><dd className="mt-1">{selectedPreviews.length ? <div className="flex flex-wrap gap-2">{selectedPreviews.map((item, index) => <div className="size-16 shrink-0 overflow-hidden rounded-lg border border-foose-border bg-foose-surface-mid sm:size-20 [&_img]:h-full [&_img]:w-full [&_img]:object-cover" key={item.url}><LightboxImage alt={`Listing photo ${index + 1}`} index={index} items={selectedPreviews.map((preview, previewIndex) => ({ alt: `Listing photo ${previewIndex + 1}`, src: preview.url }))} src={item.url} /></div>)}</div> : <span className="font-semibold text-foose-text">No photos</span>}</dd></div><div className="sm:col-span-2"><dt className="font-bold text-foose-faint">Hashtags</dt><dd className="mt-1">{hashtags.length ? <div className="flex flex-wrap gap-2">{hashtags.map((tag) => <span className="rounded-full bg-accent-light px-3 py-1.5 text-xs font-bold text-accent" key={tag}>#{tag}</span>)}</div> : <span className="font-semibold text-foose-text">None</span>}</dd></div></dl></div></FormSection>}
 
           {error && <InlineNotice title="Listing was not saved" tone="error">{error}</InlineNotice>}
 

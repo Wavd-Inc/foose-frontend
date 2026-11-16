@@ -205,7 +205,7 @@ export function ProfilePageSkeleton() {
         <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-3 sm:gap-x-4 lg:gap-x-6">
           <SkeletonBlock className="size-20 shrink-0 rounded-full sm:size-24 lg:size-28" />
           <div className="min-w-0 space-y-2">
-            <SkeletonBlock className="h-7 w-52 max-w-full lg:h-9" />
+            <SkeletonBlock className="h-7 w-52 max-w-full lg:h-8" />
             <SkeletonBlock className="h-4 w-28 max-w-full" />
           </div>
           <div className="col-span-2 space-y-2 lg:col-start-2">
@@ -229,7 +229,7 @@ export function ProfilePageSkeleton() {
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="order-first overflow-hidden rounded-2xl border border-foose-border bg-foose-surface lg:order-last">
           <SkeletonBlock className="hidden h-28 w-full rounded-none lg:block" />
-          <div className="flex items-center gap-3 p-3 sm:p-4 lg:block lg:space-y-3 lg:p-5">
+          <div className="flex flex-wrap items-center gap-3 p-3 sm:p-4 lg:block lg:space-y-3 lg:p-5">
             <SkeletonBlock className="size-14 shrink-0 rounded-full lg:-mt-12 lg:size-16 lg:rounded-xl lg:ring-4 lg:ring-foose-surface" />
             <div className="min-w-0 flex-1 space-y-2">
               <div className="flex items-center gap-2"><SkeletonBlock className="h-5 w-28" /><SkeletonBlock className="h-5 w-14 rounded-full" /></div>

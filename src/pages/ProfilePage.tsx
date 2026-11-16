@@ -428,7 +428,7 @@ function ListingsProfilePanel({ isOwnProfile, shop, username }: { isOwnProfile: 
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 @[36rem]:grid-cols-3 @[48rem]:grid-cols-4">
         {resource.items.map((listing) => <ProductCard key={listing._id} listing={listing} manageHref={isOwnProfile ? `/listings/${listing._id}/edit` : undefined} />)}
       </div>
       <ProfileContentFeedback error={resource.loadMoreError} hasMore={resource.hasMore} label="listings" loadingMore={resource.loadingMore} retry={resource.retryLoadMore} sentinelRef={resource.sentinelRef} />
@@ -516,7 +516,7 @@ function EventsProfilePanel({ isOwnProfile, username }: { isOwnProfile: boolean;
       )}
       {deleteError && <InlineNotice className="mb-3" tone="error">{deleteError}</InlineNotice>}
       {visibleEvents.length ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 @[36rem]:grid-cols-2 @[52rem]:grid-cols-3">
           {visibleEvents.map((event) => <EventCard event={event} isOwnProfile={isOwnProfile} key={event._id} onDelete={setPendingDelete} />)}
         </div>
       ) : (
@@ -537,7 +537,7 @@ function EventsProfilePanel({ isOwnProfile, username }: { isOwnProfile: boolean;
 function ShopProfilePanel({ isOwnProfile, shop }: { isOwnProfile: boolean; shop?: Shop | null }) {
   if (!shop) {
     return (
-      <section className="flex items-center gap-3 rounded-2xl border border-dashed border-foose-border bg-foose-surface p-3 shadow-sm sm:p-4 lg:block lg:p-5" data-testid="profile-shop-card">
+      <section className="flex flex-wrap items-center gap-3 rounded-2xl border border-dashed border-foose-border bg-foose-surface p-3 shadow-sm sm:p-4 lg:block lg:p-5" data-testid="profile-shop-card">
         <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-accent-light text-accent lg:rounded-xl"><Icon name="store" size={24} /></span>
         <div className="min-w-0 flex-1 lg:mt-4">
           <p className="text-[10px] font-black uppercase tracking-wide text-accent lg:text-xs">DigiShop</p>
@@ -555,7 +555,7 @@ function ShopProfilePanel({ isOwnProfile, shop }: { isOwnProfile: boolean; shop?
       <div className="hidden h-28 bg-foose-surface-mid lg:block">
         <DiscoveryImage alt={`${shop.shopName} banner`} className="h-full w-full object-cover" fallback="DigiShop banner" fallbackClassName="h-full w-full" src={shop.bannerUrl} />
       </div>
-      <div className="flex items-center gap-3 p-3 sm:p-4 lg:block lg:p-5">
+      <div className="flex flex-wrap items-center gap-3 p-3 sm:p-4 lg:block lg:p-5">
         <SafeImage alt={`${shop.shopName} logo`} className="size-14 shrink-0 rounded-full border-2 border-white object-cover shadow-sm lg:-mt-12 lg:mb-3 lg:size-16 lg:rounded-xl lg:border-4 lg:shadow-md" fallback={initials(shop.shopName)} fallbackClassName="bg-accent-light text-base font-black text-accent lg:text-lg" src={shop.logoUrl} />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-1.5 lg:gap-2">
@@ -688,32 +688,32 @@ export function ProfilePage() {
           <section className="mb-4 rounded-2xl bg-foose-surface p-3 sm:p-4 lg:p-6" data-testid="profile-identity-band">
             <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-3 sm:gap-x-4 lg:gap-x-6">
               <div className="relative shrink-0">
-                {data.user.profilePhoto ? <img alt="" className="size-20 rounded-full object-cover ring-3 ring-white shadow-md sm:size-24 lg:size-28" src={data.user.profilePhoto} /> : <span className="inline-flex size-20 items-center justify-center rounded-full bg-accent-light text-xl font-black text-accent ring-3 ring-white shadow-md sm:size-24 sm:text-2xl lg:size-28 lg:text-3xl">{initials(data.user.name)}</span>}
-                {data.user.isKycVerified && <span className="absolute bottom-0 right-0 inline-flex size-8 items-center justify-center rounded-full bg-accent text-white ring-3 ring-white sm:size-9"><MdVerified aria-label="Verified profile" /></span>}
+                {data.user.profilePhoto ? <img alt="" className="size-20 rounded-full object-cover ring-3 ring-foose-surface sm:size-24 lg:size-28" src={data.user.profilePhoto} /> : <span className="inline-flex size-20 items-center justify-center rounded-full bg-accent-light text-xl font-black text-accent ring-3 ring-foose-surface sm:size-24 sm:text-2xl lg:size-28 lg:text-3xl">{initials(data.user.name)}</span>}
+                {data.user.isKycVerified && <span className="absolute bottom-0 right-0 inline-flex size-8 items-center justify-center rounded-full bg-accent text-white ring-3 ring-foose-surface sm:size-9"><MdVerified aria-label="Verified profile" /></span>}
               </div>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="min-w-0 truncate text-xl font-black text-foose-text sm:text-2xl lg:text-4xl">{data.user.name}</h1>
+                  <h1 className="min-w-0 break-words text-xl font-bold leading-tight text-foose-text sm:text-2xl lg:text-3xl">{data.user.name}</h1>
                   {data.user.hasShop && <span className="rounded-full bg-accent-light px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-accent sm:text-xs">Seller</span>}
                 </div>
                 <p className="mt-0.5 truncate text-sm font-bold text-accent sm:text-base">@{data.user.username}</p>
               </div>
 
-              <p className="col-span-2 line-clamp-2 text-sm leading-6 text-foose-text lg:col-start-2 lg:line-clamp-none lg:text-base lg:leading-7">{data.user.bio || "I'm just a Foose member finding curated second-hand gems."}</p>
+              <p className="col-span-2 max-w-[65ch] break-words text-sm leading-6 text-foose-muted lg:col-start-2 lg:text-base lg:leading-7">{data.user.bio || "I'm just a Foose member finding curated second-hand gems."}</p>
 
               <div className="col-span-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between lg:col-start-2">
                 <div className="flex items-center gap-5 sm:gap-7" aria-label="Profile connections">
-                  <button aria-haspopup="dialog" aria-label={`View ${followerCount} followers`} className="flex cursor-pointer flex-col items-center border-0 bg-transparent p-0 text-center text-foose-text" onClick={() => setConnectionState((current) => ({ open: 'followers', profileId: data.user._id, visited: new Set([...(current.profileId === data.user._id ? current.visited : []), 'followers']) }))} type="button">
+                  <button aria-haspopup="dialog" aria-label={`View ${followerCount} followers`} className="flex min-h-11 cursor-pointer flex-col items-center justify-center border-0 bg-transparent p-0 text-center text-foose-text" onClick={() => setConnectionState((current) => ({ open: 'followers', profileId: data.user._id, visited: new Set([...(current.profileId === data.user._id ? current.visited : []), 'followers']) }))} type="button">
                     <strong className="text-lg font-black leading-none sm:text-xl">{followerCount}</strong>
                     <span className="mt-1 text-xs font-bold text-foose-muted">Followers</span>
                   </button>
-                  <button aria-haspopup="dialog" aria-label={`View ${followingCount} following`} className="flex cursor-pointer flex-col items-center border-0 bg-transparent p-0 text-center text-foose-text" onClick={() => setConnectionState((current) => ({ open: 'following', profileId: data.user._id, visited: new Set([...(current.profileId === data.user._id ? current.visited : []), 'following']) }))} type="button">
+                  <button aria-haspopup="dialog" aria-label={`View ${followingCount} following`} className="flex min-h-11 cursor-pointer flex-col items-center justify-center border-0 bg-transparent p-0 text-center text-foose-text" onClick={() => setConnectionState((current) => ({ open: 'following', profileId: data.user._id, visited: new Set([...(current.profileId === data.user._id ? current.visited : []), 'following']) }))} type="button">
                     <strong className="text-lg font-black leading-none sm:text-xl">{followingCount}</strong>
                     <span className="mt-1 text-xs font-bold text-foose-muted">Following</span>
                   </button>
                 </div>
 
-                <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
+                <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
                   {!isOwnProfile && (
                     <>
                       <button aria-busy={followBusy} aria-label={`${isFollowing ? 'Unfollow' : 'Follow'} @${data.user.username}`} aria-pressed={isFollowing} className={`inline-flex min-h-11 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-xl border px-3 text-sm font-black transition disabled:pointer-events-none disabled:opacity-60 sm:flex-none sm:px-5 ${isFollowing ? 'border-foose-border bg-foose-surface text-foose-text hover:border-foose-danger hover:text-foose-danger' : 'border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover'}`} disabled={followBusy} onClick={() => void toggleFollow()} type="button">{followBusy ? 'Updating…' : isFollowing ? 'Unfollow' : 'Follow'}</button>
@@ -734,7 +734,7 @@ export function ProfilePage() {
               <ShopProfilePanel isOwnProfile={isOwnProfile} shop={data.shop} />
             </aside>
             <div className="min-w-0">
-              <nav aria-label="Profile sections" className="sticky top-16 z-30 mb-6 overflow-hidden border-b border-foose-border bg-foose-bg/95 backdrop-blur">
+              <nav aria-label="Profile sections" className="sticky top-16 lg:top-[78px] z-30 mb-5 overflow-hidden border-b border-foose-border bg-foose-bg/95 backdrop-blur">
                 <div className="grid w-full grid-cols-3 items-center">
               {PROFILE_TABS.map((tab) => {
                 const count = data.contentCounts[tab.value]
@@ -747,14 +747,14 @@ export function ProfilePage() {
                     setVisitedTabs((current) => current.has(tab.value) ? current : new Set([...current, tab.value]))
                   }}>
                     {tab.label}
-                    <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] sm:px-2 sm:text-[11px] ${active ? 'bg-accent text-white' : 'bg-foose-surface-mid text-foose-muted'}`}>{count}</span>
+                    <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] sm:px-2 sm:text-[11px] ${active ? 'text-accent' : 'text-foose-faint'}`}>{count}</span>
                   </a>
                 )
               })}
                 </div>
               </nav>
 
-              <div className="min-h-72">
+              <div className="@container min-h-72">
                 {(activeTab === 'finspo' || visitedTabs.has('finspo')) && <ProfilePanel active={activeTab === 'finspo'} id="finspo"><FinspoProfilePanel isOwnProfile={isOwnProfile} key={`${data.user.username}:finspo`} username={data.user.username} viewerId={user?._id} /></ProfilePanel>}
                 {(activeTab === 'listings' || visitedTabs.has('listings')) && <ProfilePanel active={activeTab === 'listings'} id="listings"><ListingsProfilePanel isOwnProfile={isOwnProfile} key={`${data.user.username}:listings`} shop={data.shop} username={data.user.username} /></ProfilePanel>}
                 {(activeTab === 'events' || visitedTabs.has('events')) && <ProfilePanel active={activeTab === 'events'} id="events"><EventsProfilePanel isOwnProfile={isOwnProfile} key={`${data.user.username}:events`} username={data.user.username} /></ProfilePanel>}

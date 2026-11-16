@@ -1,6 +1,7 @@
+import { notificationTarget } from '../utils/notificationTarget'
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { HiFlag } from 'react-icons/hi'
-import { AppShell, BlockUserButton, Dialog, Icon, InlineNotice, LoadingRegion, Message, OfferCard, ReportUserDialog, SkeletonBlock, StatePanel } from '../components'
+import { AppShell, BlockUserButton, Dialog, Icon, InlineNotice, LoadingRegion, Message, OfferCard, ReportUserDialog, SkeletonBlock, StatePanel, useToast } from '../components'
 import { InboxListSkeleton } from '../components/operational/OperationalStates'
 import { NavigationBackButton } from '../components/navigation'
 import { useAuth } from '../hooks/useAuth'
@@ -13,7 +14,7 @@ import { useImagePreviewStore } from '../stores/imagePreviewStore'
 import type { ChatConversation, ChatMessage, ChatReactionName, Listing, Notification, User } from '../types/api'
 import { getErrorMessage } from '../utils/errorMessage'
 import { formatDateTime, formatMoney, getListingImage, initials } from '../utils/format'
-import { navigateTo, withBasePath } from '../utils/navigation'
+import { navigateTo, withBasePath, registerNavigationScrollRegion, setNextNavigationContext, captureNavigationTrigger } from '../utils/navigation'
 
 type InboxChatMessage = ChatMessage & {
   clientMessageId?: string
@@ -230,6 +231,10 @@ function ReplyContextBand({ message, onDismiss }: { message: InboxChatMessage; o
 
 export function InboxPage() {
   const { user } = useAuth()
+  const { showToast } = useToast()
+  const systemListRef = useRef<HTMLElement>(null)
+  const pendingReads = useRef(new Set<string>())
+  useEffect(() => registerNavigationScrollRegion('system-notifications', () => systemListRef.current), [])
   const {
     conversations: conversationItems,
     joinConversation,
@@ -702,18 +707,18 @@ export function InboxPage() {
     })
   }
 
-  function openNotificationTarget(notification: Notification) {
-    if (!notification.link) return
-    setSelectedNotification(null)
-    navigateTo(notification.link)
-  }
-
-  function openNotificationDetails(notification: Notification) {
-    setSelectedNotification(notification)
-    if (notification.isRead) return
-
-    void markNotificationRead(notification._id)
-      .catch(() => undefined)
+  function openNotificationDetails(notification: Notification, trigger: HTMLElement) {
+    if (!notification.isRead && !pendingReads.current.has(notification._id)) {
+      pendingReads.current.add(notification._id)
+      void markNotificationRead(notification._id)
+        .catch(() => showToast({ title: 'Notification still unread', message: 'Could not mark this notification as read. Try again.', tone: 'error' }))
+        .finally(() => pendingReads.current.delete(notification._id))
+    }
+    const target = notificationTarget(notification.link)
+    if (target.kind === 'internal') {
+      setNextNavigationContext({ trigger: captureNavigationTrigger(trigger) })
+      navigateTo(target.href)
+    } else setSelectedNotification(notification)
   }
 
   useEffect(() => {
@@ -796,7 +801,7 @@ export function InboxPage() {
           </section>
           )}
           {params.section === 'system' && (
-          <section className="system-notifications flex min-h-0 flex-1 flex-col overflow-y-auto" aria-label="System notifications">
+          <section ref={systemListRef} className="system-notifications flex min-h-0 flex-1 flex-col overflow-y-auto" aria-label="System notifications">
             <h2 className="sr-only">System notifications</h2>
             {notificationLoading && <InboxListSkeleton label="Loading notifications" />}
             {notificationError && <StatePanel body={notificationError} layout="pane" title="Notifications unavailable" tone="error" />}
@@ -804,7 +809,7 @@ export function InboxPage() {
               <StatePanel body="Likes, comments, replies, follows, reviews, and account updates will appear here." layout="pane" title="No activity yet" tone="empty" />
             )}
             {notificationItems.map((notification) => (
-              <button className={`notification-item grid min-h-[76px] w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 border-b border-foose-border px-4 py-3 text-left transition hover:bg-foose-surface-low ${notification.isRead ? 'bg-foose-surface' : 'bg-accent-light/55'}`} key={notification._id} onClick={() => openNotificationDetails(notification)} type="button">
+              <button className={`notification-item grid min-h-[76px] w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 border-b border-foose-border px-4 py-3 text-left transition hover:bg-foose-surface-low ${notification.isRead ? 'bg-foose-surface' : 'bg-accent-light/55'}`} key={notification._id} id={`notification-${notification._id}`} onClick={(event) => openNotificationDetails(notification, event.currentTarget)} type="button">
                 <span className="inline-flex size-11 items-center justify-center rounded-full bg-accent-light text-accent">
                   <Icon name="bell" />
                 </span>
@@ -1042,10 +1047,8 @@ export function InboxPage() {
               <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent" onClick={() => setSelectedNotification(null)} type="button">
                 Close
               </button>
-              {selectedNotification.link && (
-                <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-accent bg-accent px-4 text-sm font-bold text-white transition hover:bg-accent-hover" onClick={() => openNotificationTarget(selectedNotification)} type="button">
-                  Open related page
-                </button>
+              {notificationTarget(selectedNotification.link).kind === 'external' && (
+                <a className="inline-flex min-h-11 items-center justify-center rounded-xl bg-accent px-4 text-sm font-bold text-white" href={selectedNotification.link} target="_blank" rel="noopener noreferrer">Open website</a>
               )}
             </>
           ) : null}
@@ -1056,9 +1059,7 @@ export function InboxPage() {
         >
           {selectedNotification && (
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="inline-flex rounded-full bg-accent-light px-3 py-1 text-xs font-bold uppercase tracking-wider text-accent">
-                {selectedNotification.type}
-              </span>
+              {(() => { const target = notificationTarget(selectedNotification.link); return target.kind === 'external' ? <p className="text-sm text-foose-muted">Website: {target.domain}</p> : target.kind === 'details' && target.unavailable ? <p className="text-sm text-foose-muted">This link is unavailable.</p> : null })()}
               {selectedNotification.createdAt && (
                 <span className="text-xs font-semibold uppercase tracking-wider text-foose-faint">{formatDateTime(selectedNotification.createdAt)}</span>
               )}

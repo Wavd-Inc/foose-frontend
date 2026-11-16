@@ -1,8 +1,9 @@
+import type { AvatarCropResult } from '../components/forms/AvatarCropDialog'
 import { GHANA_BANKS } from '../utils/ghanaBanks'
 import { SellerOnboardingLayout } from '../components/marketplace/SellerOnboardingLayout'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { ButtonLink, Icon, ImagePreviewInput, InlineNotice, SelectControl, StatePanel, StepIndicator } from '../components'
-import { ChoiceCardGroup, ErrorSummary, SubmitButton } from '../components/forms/FormControls'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { ButtonLink, Icon, AvatarCropDialog, InlineNotice, SelectControl, StatePanel, StepIndicator } from '../components'
+import { ErrorSummary, SubmitButton } from '../components/forms/FormControls'
 import { FormField, TextAreaField, TextField } from '../components/forms/FormField'
 import { FormActions, FormPage, FormSection } from '../components/forms/FormLayout'
 import { UnsavedChangesGuard } from '../components/forms/UnsavedChangesGuard'
@@ -23,15 +24,15 @@ function appendText(formData: FormData, name: string, value: FormDataEntryValue 
   if (text) formData.append(name, text)
 }
 
-function appendSelectedFile(formData: FormData, form: HTMLFormElement, name: string) {
-  const input = form.elements.namedItem(name) as HTMLInputElement | null
-  const file = input?.files?.[0]
-  if (file && file.name && file.size > 0) formData.append(name, file)
-}
-
 export function OpenShopPage() {
   const { refreshUser, user } = useAuth()
   const kycStatus = user?.kycId && typeof user.kycId === 'object' ? user.kycId.status : undefined
+  const headingRef = useRef<HTMLDivElement>(null)
+  const [assets, setAssets] = useState<Partial<Record<'logo' | 'banner', AvatarCropResult & { output: File; url: string }>>>({})
+  const assetsRef = useRef(assets)
+  useEffect(() => { assetsRef.current = assets }, [assets])
+  useEffect(() => () => { Object.values(assetsRef.current).forEach((asset) => URL.revokeObjectURL(asset.url)) }, [])
+  const [editor, setEditor] = useState<{ target: 'logo' | 'banner'; file: File; saved?: AvatarCropResult } | null>(null)
   const [error, setError] = useState('')
   const [shopName, setShopName] = useState('')
   const [shopNameTouched, setShopNameTouched] = useState(false)
@@ -73,7 +74,7 @@ export function OpenShopPage() {
     userId: user?._id,
     value: draftValue,
   })
-  const dirty = Boolean(shopName || bio || cityInput !== undefined || regionInput !== undefined || category !== 'both')
+  const dirty = Boolean(Object.keys(assets).length || shopName || bio || cityInput !== undefined || regionInput !== undefined || category !== 'both')
 
   useEffect(() => {
     if (user?.hasShop) navigateTo('/manage-shop')
@@ -83,7 +84,7 @@ export function OpenShopPage() {
     for (const name of ['payoutAccountName', payoutMethod === 'mobile_money' ? 'payoutProvider' : 'payoutBankName', 'payoutAccountNumber']) {
       const field = form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | null
       if (!field?.value.trim()) {
-        setStep(2)
+        setStep(1)
         setError('Enter the account name, select a provider or bank, and enter the account number before continuing.')
         window.requestAnimationFrame(() => { field?.focus(); field?.reportValidity() })
         return false
@@ -99,7 +100,7 @@ export function OpenShopPage() {
       setShopNameTouched(true)
       setCityTouched(true)
       setRegionTouched(true)
-      setStep(!shopNameValid ? 0 : 1)
+      setStep(0)
       setValidationAttempt((attempt) => attempt + 1)
       return
     }
@@ -118,8 +119,8 @@ export function OpenShopPage() {
     appendText(formData, 'payoutAccountNumber', sourceData.get('payoutAccountNumber'))
     appendText(formData, 'payoutBankName', sourceData.get('payoutBankName'))
     appendText(formData, 'payoutBranch', sourceData.get('payoutBranch'))
-    appendSelectedFile(formData, form, 'logo')
-    appendSelectedFile(formData, form, 'banner')
+    if (assets.logo) formData.append('logo', assets.logo.output)
+    if (assets.banner) formData.append('banner', assets.banner.output)
     setSubmitting(true)
     setError('')
 
@@ -136,21 +137,15 @@ export function OpenShopPage() {
   }
 
   function continueSetup() {
-    if (step === 2 && !validatePayout(document.getElementById('shop-setup-form') as HTMLFormElement)) return
-    if (step === 0 && !shopNameValid) {
-      setShopNameTouched(true)
-      setValidationAttempt((attempt) => attempt + 1)
-      return
-    }
-    if (step === 1 && (!cityValid || !regionValid)) {
-      setCityTouched(true)
-      setRegionTouched(true)
+    if (step === 1 && !validatePayout(document.getElementById('shop-setup-form') as HTMLFormElement)) return
+    if (step === 0 && !canSubmit) {
+      setShopNameTouched(true); setCityTouched(true); setRegionTouched(true)
       setValidationAttempt((attempt) => attempt + 1)
       return
     }
     setValidationAttempt(0)
-    setStep((current) => Math.min(3, current + 1))
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    setStep((current) => Math.min(2, current + 1))
+    window.requestAnimationFrame(() => headingRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
   }
 
   if (!user?.isKycVerified) {
@@ -173,9 +168,9 @@ export function OpenShopPage() {
   }
 
   return (
-    <SellerOnboardingLayout milestone={step < 2 ? 2 : step === 2 ? 3 : 4}>
-      <div className="flow-content w-full">
-        <FormPage description="Create your shop identity, location, payout destination, and brand in four short steps." eyebrow={`Step ${step + 1} of 4`} title="Open your DigiShop" width="standard">
+    <SellerOnboardingLayout compactHeading milestone={step === 0 ? 2 : step === 1 ? 3 : 4}>
+      <div ref={headingRef} className="flow-content w-full pb-[calc(10rem+env(safe-area-inset-bottom))] sm:pb-[calc(6rem+env(safe-area-inset-bottom))]">
+        <FormPage title="Open your DigiShop" width="standard">
           <UnsavedChangesGuard when={dirty && !submitting} />
           {draft.hasRecoverableDraft && (
             <InlineNotice
@@ -185,26 +180,26 @@ export function OpenShopPage() {
                   <button className="min-h-11 rounded-lg px-3 font-black text-foose-muted hover:bg-foose-surface-low" onClick={() => draft.discardDraft()} type="button">Discard</button>
                 </div>
               )}
-              title="Continue setting up your shop?"
+              title="Resume shop setup?"
             >
-              We found a recent local draft. Payout details and image files were not stored.
+              Images and payout details aren’t saved.
             </InlineNotice>
           )}
           <StepIndicator
             current={step}
             label="Shop setup progress"
-            onStepChange={(index) => { if (index < step) setStep(index) }}
-            steps={['Identity', 'Location', 'Payout', 'Brand']}
+            onStepChange={(index) => { if (index < step) { setStep(index); window.requestAnimationFrame(() => headingRef.current?.scrollIntoView({ block: 'start' })) } }}
+            steps={['Shop details', 'Payout', 'Images & review']}
           />
 
           <form id="shop-setup-form" className="space-y-5" encType="multipart/form-data" noValidate onSubmit={(event) => void createShop(event)}>
             <ErrorSummary
-              errors={validationErrors.filter((item) => step === 0 ? item.fieldId === 'shop-name' : step === 1 ? item.fieldId !== 'shop-name' : step === 3)}
+              errors={step === 0 || step === 2 ? validationErrors : []}
               focus={validationAttempt > 0}
             />
 
             <div hidden={step !== 0}>
-              <FormSection description="Choose the public name and inventory focus shoppers will recognize." title="Shop identity">
+              <FormSection title="Shop details">
                 <TextField
                   autoComplete="organization"
                   error={shopNameInvalid ? 'Enter at least 2 characters.' : undefined}
@@ -217,23 +212,9 @@ export function OpenShopPage() {
                   required
                   value={shopName}
                 />
-                <TextAreaField id="shop-bio" label="Shop bio" maxLength={500} name="bio" onChange={(event) => setBio(event.target.value)} optional placeholder="Tell buyers what you curate and what makes the shop distinct." rows={5} value={bio} />
-                <ChoiceCardGroup
-                  label="Primary category"
-                  name="category"
-                  onChange={setCategory}
-                  options={[
-                    { description: 'Sell individual items.', label: 'Retail', value: 'retail' },
-                    { description: 'Sell bales and bulk lots.', label: 'Wholesale', value: 'wholesale' },
-                    { description: 'Offer both formats.', label: 'Retail + wholesale', value: 'both' },
-                  ]}
-                  value={category}
-                />
-              </FormSection>
-            </div>
-
-            <div hidden={step !== 1}>
-              <FormSection columns={2} description="This becomes the default location for your listings and marketplace filters." title="Shop location">
+                <TextAreaField id="shop-bio" label="Shop bio" maxLength={500} name="bio" onChange={(event) => setBio(event.target.value)} optional placeholder="What do you sell?" rows={3} value={bio} />
+                <FormField htmlFor="shop-category" label="Selling type"><SelectControl id="shop-category" name="category" value={category} onChange={(event) => setCategory(event.target.value)}><option value="retail">Retail</option><option value="wholesale">Wholesale (bulk)</option><option value="both">Retail &amp; wholesale</option></SelectControl></FormField>
+                <div className="grid gap-4 sm:grid-cols-2">
                 <TextField
                   autoComplete="address-level2"
                   error={cityInvalid ? 'Enter at least 2 characters.' : undefined}
@@ -261,12 +242,13 @@ export function OpenShopPage() {
                     {GHANA_REGIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                   </SelectControl>
                 </FormField>
+                </div>
               </FormSection>
             </div>
 
-            <div hidden={step !== 2}>
-              <FormSection columns={2} description="Foose uses this destination after escrow releases. For your security, payout values are never saved in local drafts." title="Funds collection method">
-                <FormField htmlFor="payout-method" label="Method">
+            <div hidden={step !== 1}>
+              <FormSection columns={2} description="Receive payouts here after funds are released. Payout details aren’t saved in drafts." title="Payout details">
+                <FormField htmlFor="payout-method" label="Payment method">
                   <SelectControl value={payoutMethod} onChange={(event) => setPayoutMethod(event.target.value)} id="payout-method" name="payoutMethodType">
                     <option value="mobile_money">Mobile money</option>
                     <option value="bank_transfer">Bank transfer</option>
@@ -285,16 +267,10 @@ export function OpenShopPage() {
               </FormSection>
             </div>
 
-            <div hidden={step !== 3}>
-              <FormSection columns={2} description="Add recognizable imagery now, or return to Shop settings after setup." title="Brand and review">
-                <FormField hint="Upload a square JPEG, PNG, or WebP image." htmlFor="logo" label="Shop logo" optional>
-                  <ImagePreviewInput accept={ACCEPT_IMAGES} maxFiles={1} name="logo" />
-                </FormField>
-                <FormField hint="Upload a wide JPEG, PNG, or WebP image." htmlFor="banner" label="Shop banner" optional>
-                  <ImagePreviewInput accept={ACCEPT_IMAGES} maxFiles={1} name="banner" />
-                </FormField>
+            <div hidden={step !== 2}>
+              <FormSection columns={2} description="Optional · JPEG, PNG or WebP · Up to 5 MB each" title="Shop images">
+                {(['logo', 'banner'] as const).map((target) => <div key={target} className="min-w-0"><label htmlFor={`shop-${target}`} className="mb-2 block text-sm font-bold">Shop {target}</label>{assets[target] && <img alt={`Shop ${target}`} src={assets[target].url} className="mb-2 w-full rounded-xl object-contain" style={{ aspectRatio: target === 'logo' ? 1 : 2.5 }} />}<div className="flex items-center gap-2"><input id={`shop-${target}`} type="file" accept={ACCEPT_IMAGES} className="min-w-0 flex-1 text-[0px] file:min-h-11 file:rounded-xl file:border-0 file:bg-accent-light file:px-3 file:text-sm file:font-bold file:text-accent" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) setEditor({ target, file }) }} />{assets[target] && <><button type="button" className="min-h-11 text-sm font-bold text-accent" onClick={() => setEditor({ target, file: assets[target]!.sourceFile, saved: assets[target] })}>Adjust</button><button type="button" className="min-h-11 text-sm text-foose-muted" onClick={() => { URL.revokeObjectURL(assets[target]!.url); setAssets((current) => { const next = { ...current }; delete next[target]; return next }) }}>Remove</button></>}</div></div>)}
                 <div className="form-field-wide rounded-2xl bg-accent-light/55 p-5">
-                  <p className="text-xs font-black uppercase tracking-[0.14em] text-accent">Ready to open</p>
                   <h3 className="mt-2 font-display text-2xl font-semibold text-foose-text">{shopName || 'Your DigiShop'}</h3>
                   <p className="mt-2 text-sm leading-6 text-foose-muted">{city && region ? `${city}, ${region}` : 'Add your location'} · {category === 'both' ? 'Retail and wholesale' : category}</p>
                   {bio && <p className="mt-3 text-sm leading-6 text-foose-text">{bio}</p>}
@@ -303,17 +279,19 @@ export function OpenShopPage() {
             </div>
 
             {error && <InlineNotice title="DigiShop was not created" tone="error">{error}</InlineNotice>}
-            <FormActions sticky>
+            <FormActions fixed bottomNavInset={false}>
               {step === 0 ? <ButtonLink to="/" variant="secondary">Cancel</ButtonLink> : (
                 <button className="inline-flex min-h-12 items-center justify-center rounded-xl border border-foose-border bg-foose-surface px-5 text-sm font-bold text-foose-text hover:border-accent hover:text-accent" onClick={() => setStep((current) => Math.max(0, current - 1))} type="button">Back</button>
               )}
-              {step < 3 ? (
+              {step < 2 ? (
                 <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-5 text-sm font-black text-white shadow-md shadow-accent/15 hover:bg-accent-hover" onClick={continueSetup} type="button">Continue <Icon name="arrow" /></button>
               ) : (
                 <SubmitButton loading={submitting} loadingLabel="Opening DigiShop…">Create DigiShop <Icon name="arrow" /></SubmitButton>
               )}
             </FormActions>
           </form>
+          {editor && <AvatarCropDialog open initialFile={editor.file} initialCrop={editor.saved?.cropState} assetLabel={`shop ${editor.target}`} cropShape={editor.target === 'logo' ? 'circle' : 'rectangle'} outputWidth={editor.target === 'logo' ? 512 : 1500} outputHeight={editor.target === 'logo' ? 512 : 600} onCancel={() => setEditor(null)} onApply={(output, result) => { const previous = assets[editor.target]; if (previous) URL.revokeObjectURL(previous.url); setAssets((current) => ({ ...current, [editor.target]: { ...result, output, url: URL.createObjectURL(output) } })); setEditor(null) }} />}
+
         </FormPage>
       </div>
     </SellerOnboardingLayout>

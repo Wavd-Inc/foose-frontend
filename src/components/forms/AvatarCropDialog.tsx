@@ -25,13 +25,18 @@ type DragState = Point & {
   pointerId: number
 }
 
+export type AvatarCropState = { pan: Point; zoom: number }
+export type AvatarCropResult = { sourceFile: File; cropState: AvatarCropState }
+
 export type AvatarCropDialogProps = {
   actionVerb?: 'Apply' | 'Save'
   assetLabel?: string
   cropShape?: 'circle' | 'rectangle'
+  imageFit?: 'cover' | 'contain'
+  initialCrop?: AvatarCropState
   initialFile?: File | null
   maxBytes?: number
-  onApply: (file: File) => Promise<void> | void
+  onApply: (file: File, result: AvatarCropResult) => Promise<void> | void
   onCancel: () => void
   open: boolean
   outputHeight?: number
@@ -54,8 +59,8 @@ function validateFile(file: File, maxBytes: number) {
   return null
 }
 
-function imageMetrics(image: HTMLImageElement, outputWidth: number, outputHeight: number, zoom: number) {
-  const baseScale = Math.max(outputWidth / image.naturalWidth, outputHeight / image.naturalHeight)
+function imageMetrics(image: HTMLImageElement, outputWidth: number, outputHeight: number, zoom: number, imageFit: 'cover' | 'contain' = 'cover') {
+  const baseScale = (imageFit === 'contain' ? Math.min : Math.max)(outputWidth / image.naturalWidth, outputHeight / image.naturalHeight)
   const scale = baseScale * zoom
   const width = image.naturalWidth * scale
   const height = image.naturalHeight * scale
@@ -68,9 +73,9 @@ function imageMetrics(image: HTMLImageElement, outputWidth: number, outputHeight
   }
 }
 
-function clampPan(point: Point, image: HTMLImageElement | null, outputWidth: number, outputHeight: number, zoom: number): Point {
+function clampPan(point: Point, image: HTMLImageElement | null, outputWidth: number, outputHeight: number, zoom: number, imageFit: 'cover' | 'contain' = 'cover'): Point {
   if (!image) return { x: 0, y: 0 }
-  const { maxX, maxY } = imageMetrics(image, outputWidth, outputHeight, zoom)
+  const { maxX, maxY } = imageMetrics(image, outputWidth, outputHeight, zoom, imageFit)
   return {
     x: Math.max(-maxX, Math.min(maxX, point.x)),
     y: Math.max(-maxY, Math.min(maxY, point.y)),
@@ -84,11 +89,13 @@ function drawCrop(
   outputHeight: number,
   zoom: number,
   pan: Point,
+  imageFit: 'cover' | 'contain' = 'cover',
 ) {
   const context = canvas.getContext('2d')
   if (!context) return false
-  const { height, width } = imageMetrics(image, outputWidth, outputHeight, zoom)
+  const { height, width } = imageMetrics(image, outputWidth, outputHeight, zoom, imageFit)
   context.clearRect(0, 0, outputWidth, outputHeight)
+  if (imageFit === 'contain') { context.fillStyle = '#ffffff'; context.fillRect(0, 0, outputWidth, outputHeight) }
   context.imageSmoothingEnabled = true
   context.imageSmoothingQuality = 'high'
   context.drawImage(
@@ -119,7 +126,9 @@ export function AvatarCropDialog({
   actionVerb = 'Apply',
   assetLabel = 'profile photo',
   cropShape = 'circle',
+  imageFit = 'cover',
   initialFile = null,
+  initialCrop,
   maxBytes = DEFAULT_MAX_BYTES,
   onApply,
   onCancel,
@@ -173,7 +182,7 @@ export function AvatarCropDialog({
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [releasePreviewUrl])
 
-  const loadFile = useCallback((file: File) => {
+  const loadFile = useCallback((file: File, savedCrop?: AvatarCropState) => {
     const validationError = validateFile(file, maxBytes)
     if (validationError) {
       setError(validationError)
@@ -198,6 +207,9 @@ export function AvatarCropDialog({
     nextImage.onload = () => {
       if (loadVersionRef.current !== version) return
       imageRef.current = nextImage
+      const restoredZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, savedCrop?.zoom ?? MIN_ZOOM))
+      setZoom(restoredZoom)
+      setPan(clampPan(savedCrop?.pan ?? { x: 0, y: 0 }, nextImage, cropWidth, cropHeight, restoredZoom, imageFit))
       setImage(nextImage)
       setLoadingImage(false)
     }
@@ -209,16 +221,16 @@ export function AvatarCropDialog({
       setError('This image could not be opened. Choose another image and try again.')
     }
     nextImage.src = url
-  }, [maxBytes, releasePreviewUrl])
+  }, [cropHeight, cropWidth, imageFit, maxBytes, releasePreviewUrl])
 
   useEffect(() => {
     if (!open) return undefined
     const timer = window.setTimeout(() => {
-      if (initialFile) loadFile(initialFile)
+      if (initialFile) loadFile(initialFile, initialCrop)
       else resetEditor()
     }, 0)
     return () => window.clearTimeout(timer)
-  }, [initialFile, loadFile, open, resetEditor])
+  }, [initialCrop, initialFile, loadFile, open, resetEditor])
 
   useEffect(() => () => {
     loadVersionRef.current += 1
@@ -227,8 +239,8 @@ export function AvatarCropDialog({
 
   useEffect(() => {
     if (!image || !canvasRef.current) return
-    drawCrop(canvasRef.current, image, cropWidth, cropHeight, zoom, pan)
-  }, [cropHeight, cropWidth, image, pan, zoom])
+    drawCrop(canvasRef.current, image, cropWidth, cropHeight, zoom, pan, imageFit)
+  }, [cropHeight, cropWidth, image, imageFit, pan, zoom])
 
   function chooseFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -237,7 +249,7 @@ export function AvatarCropDialog({
   }
 
   function moveImage(nextPoint: Point) {
-    setPan(clampPan(nextPoint, image, cropWidth, cropHeight, zoom))
+    setPan(clampPan(nextPoint, image, cropWidth, cropHeight, zoom, imageFit))
   }
 
   function finishDrag(event: PointerEvent<HTMLCanvasElement>) {
@@ -282,7 +294,7 @@ export function AvatarCropDialog({
     setApplying(true)
     setError(null)
     try {
-      if (!drawCrop(canvas, currentImage, cropWidth, cropHeight, zoom, pan)) {
+      if (!drawCrop(canvas, currentImage, cropWidth, cropHeight, zoom, pan, imageFit)) {
         throw new Error('Your browser could not prepare this image.')
       }
       const blob = await canvasBlob(canvas)
@@ -290,7 +302,7 @@ export function AvatarCropDialog({
         lastModified: Date.now(),
         type: 'image/jpeg',
       })
-      await onApply(croppedFile)
+      await onApply(croppedFile, { sourceFile: currentFile, cropState: { pan: { ...pan }, zoom } })
     } catch (applyError) {
       setError(applyError instanceof Error ? applyError.message : `The ${assetLabel} could not be prepared. Try again.`)
     } finally {
@@ -329,12 +341,13 @@ export function AvatarCropDialog({
 
   return (
     <Dialog
-      description="Choose a photo, then move and zoom it until it fits the frame."
+      className="[&>header]:shrink-0 [&>footer]:shrink-0 [&>footer]:flex-row [&>footer>button]:min-w-0 [&>footer>button]:flex-1 sm:[&>footer>button]:flex-none"
+      description="Move and zoom your photo to fit the frame."
       dismissible={!applying}
       footer={footer}
       onClose={cancel}
       open={open}
-      size="md"
+      size="sm"
       title={`Change ${assetLabel}`}
     >
       <div aria-busy={loadingImage || applying || undefined} className="space-y-4">
@@ -369,7 +382,15 @@ export function AvatarCropDialog({
 
         {(selectedFile || loadingImage) && (
           <>
-            <div className="relative mx-auto w-full max-w-[42rem] overflow-hidden rounded-2xl bg-slate-950 shadow-inner" style={{ aspectRatio: cropAspectRatio }}>
+            <div
+              className="relative mx-auto max-w-full overflow-hidden rounded-2xl bg-foose-surface-mid"
+              style={{
+                aspectRatio: cropAspectRatio,
+                // Reserve room for the dialog header, instructions, controls, and actions.
+                // Only the preview shrinks; the exported image keeps its original dimensions.
+                width: `min(100%, ${20 * cropAspectRatio}rem, calc(max(4rem, min(90dvh, 52rem) - 24rem) * ${cropAspectRatio}))`,
+              }}
+            >
               <canvas
                 aria-describedby={instructionsId}
                 aria-label={`${displayLabel} crop area`}
@@ -403,11 +424,6 @@ export function AvatarCropDialog({
                 width={cropWidth}
               />
               <div aria-hidden="true" className={`pointer-events-none absolute inset-1 border-2 border-white/90 shadow-[0_0_0_999px_rgba(2,6,23,0.38)] ${cropShape === 'circle' ? 'rounded-full' : 'rounded-xl'}`} />
-              <div aria-hidden="true" className="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3 opacity-35 [&>span]:border-white/70">
-                <span className="border-r border-b" /><span className="border-r border-b" /><span className="border-b" />
-                <span className="border-r border-b" /><span className="border-r border-b" /><span className="border-b" />
-                <span className="border-r" /><span className="border-r" /><span />
-              </div>
               {loadingImage && (
                 <div className="absolute inset-0 grid place-items-center bg-slate-950/75 text-white" role="status">
                   <span className="flex items-center gap-2 text-sm font-bold">
@@ -418,9 +434,9 @@ export function AvatarCropDialog({
               )}
             </div>
 
-            <p className="text-center text-sm leading-6 text-foose-muted" id={instructionsId}>Drag the image to reposition it. Keyboard users can use the arrow keys; hold Shift for larger movements.</p>
+            <p className="sr-only" id={instructionsId}>Drag to reposition, or use arrow keys. Hold Shift for larger movements.</p>
 
-            <div className="rounded-2xl border border-foose-border bg-foose-surface-low/55 p-4">
+            <div className="mx-auto max-w-sm">
               <div className="flex items-center gap-3">
                 <span aria-hidden="true" className="text-lg font-black text-foose-muted">-</span>
                 <label className="sr-only" htmlFor={`${inputId}-zoom`}>Zoom image</label>
@@ -433,7 +449,7 @@ export function AvatarCropDialog({
                   onChange={(event) => {
                     const nextZoom = Number(event.target.value)
                     setZoom(nextZoom)
-                    setPan((current) => clampPan(current, image, cropWidth, cropHeight, nextZoom))
+                    setPan((current) => clampPan(current, image, cropWidth, cropHeight, nextZoom, imageFit))
                   }}
                   step="0.01"
                   type="range"
@@ -441,29 +457,26 @@ export function AvatarCropDialog({
                 />
                 <span aria-hidden="true" className="text-xl font-black text-foose-muted">+</span>
               </div>
-              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                <p className="min-w-0 flex-1 truncate text-xs font-semibold text-foose-muted" title={selectedFile?.name}>{selectedFile?.name}</p>
-                <div className="flex gap-1">
-                  <button
-                    className="inline-flex min-h-11 items-center justify-center rounded-xl px-3 text-sm font-bold text-foose-muted transition hover:bg-accent-light hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:opacity-50"
-                    disabled={!image || applying}
-                    onClick={() => {
-                      setPan({ x: 0, y: 0 })
-                      setZoom(MIN_ZOOM)
-                    }}
-                    type="button"
-                  >
-                    Reset
-                  </button>
-                  <button
-                    className="inline-flex min-h-11 items-center justify-center rounded-xl px-3 text-sm font-black text-accent transition hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:opacity-50"
-                    disabled={applying}
-                    onClick={() => fileInputRef.current?.click()}
-                    type="button"
-                  >
-                    Replace
-                  </button>
-                </div>
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl px-3 text-sm font-bold text-foose-muted transition hover:bg-accent-light hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:opacity-50"
+                  disabled={!image || applying}
+                  onClick={() => {
+                    setPan({ x: 0, y: 0 })
+                    setZoom(MIN_ZOOM)
+                  }}
+                  type="button"
+                >
+                  Reset
+                </button>
+                <button
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl px-3 text-sm font-black text-accent transition hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:opacity-50"
+                  disabled={applying}
+                  onClick={() => fileInputRef.current?.click()}
+                  type="button"
+                >
+                  Replace photo
+                </button>
               </div>
             </div>
           </>
