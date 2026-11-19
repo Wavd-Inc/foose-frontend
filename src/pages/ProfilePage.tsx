@@ -224,6 +224,7 @@ function ProfileConnectionsDialog({
   const [hiddenFollowing, setHiddenFollowing] = useState<Set<string>>(() => new Set())
   const [busyId, setBusyId] = useState('')
   const [actionError, setActionError] = useState<{ message: string; type: ProfileConnectionType } | null>(null)
+  const [pendingUnfollow, setPendingUnfollow] = useState<ProfileConnectionMember | null>(null)
   const [pendingRemoval, setPendingRemoval] = useState<ProfileConnectionMember | null>(null)
 
   const followersVisited = visited.has('followers')
@@ -240,7 +241,9 @@ function ProfileConnectionsDialog({
   const currentCount = selected === 'following' ? followingCount : followerCount
   const label = selected === 'following' ? 'Following' : 'Followers'
 
-  async function unfollow(member: ProfileConnectionMember) {
+  async function unfollow() {
+    const member = pendingUnfollow
+    if (!member || busyId) return
     setBusyId(member._id)
     setActionError(null)
     try {
@@ -251,6 +254,7 @@ function ProfileConnectionsDialog({
     } catch (error) {
       setActionError({ message: getErrorMessage(error, `Could not unfollow @${member.username}`), type: 'following' })
     } finally {
+      setPendingUnfollow(null)
       setBusyId('')
     }
   }
@@ -294,7 +298,7 @@ function ProfileConnectionsDialog({
                 </a>
                 {isOwnProfile && (
                   <span className="flex shrink-0 items-center gap-2">
-                    <button className="inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl border border-foose-border px-3 text-xs font-black text-foose-text transition hover:border-foose-danger hover:text-foose-danger disabled:pointer-events-none disabled:opacity-60" disabled={busyId === member._id} onClick={() => selected === 'following' ? void unfollow(member) : setPendingRemoval(member)} type="button">{busyId === member._id ? 'Updating…' : selected === 'following' ? 'Unfollow' : 'Remove'}</button>
+                    <button className="inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl border border-foose-border px-3 text-xs font-black text-foose-text transition hover:border-foose-danger hover:text-foose-danger disabled:pointer-events-none disabled:opacity-60" disabled={Boolean(busyId)} onClick={() => selected === 'following' ? setPendingUnfollow(member) : setPendingRemoval(member)} type="button">{busyId === member._id ? 'Updating…' : selected === 'following' ? 'Unfollow' : 'Remove'}</button>
                     <a className="inline-flex min-h-10 items-center justify-center rounded-xl border border-accent bg-accent px-3 text-xs font-black text-white transition hover:bg-accent-hover" href={withBasePath(profileMessageHref(viewerId, member._id))} onClick={onClose}>Message</a>
                   </span>
                 )}
@@ -305,6 +309,7 @@ function ProfileConnectionsDialog({
         {resource.data?.restricted && <InlineNotice className="mt-4" tone="info">Only @{username} can see all {label.toLocaleLowerCase()}.</InlineNotice>}
         {isOwnProfile && !!resource.items.length && <ProfileContentFeedback error={resource.loadMoreError} hasMore={resource.hasMore} label={label.toLocaleLowerCase()} loadingMore={resource.loadingMore} retry={resource.retryLoadMore} sentinelRef={resource.sentinelRef} />}
       </Dialog>
+      <ConfirmDialog busy={Boolean(pendingUnfollow && busyId === pendingUnfollow._id)} confirmLabel="Unfollow" iconInTitle description={pendingUnfollow ? `Unfollow @${pendingUnfollow.username}? If you're friends, you'll no longer be friends.` : ''} onCancel={() => setPendingUnfollow(null)} onConfirm={() => void unfollow()} open={Boolean(pendingUnfollow)} title="Unfollow?" tone="destructive" />
       <ConfirmDialog busy={Boolean(pendingRemoval && busyId === pendingRemoval._id)} confirmLabel="Remove follower" description={pendingRemoval ? `Remove @${pendingRemoval.username} from your followers? They will no longer follow you.` : ''} onCancel={() => setPendingRemoval(null)} onConfirm={() => void removeFollower()} open={Boolean(pendingRemoval)} title="Remove follower?" tone="destructive" />
     </>
   )
@@ -594,6 +599,7 @@ export function ProfilePage() {
   const profile = useApiResource<ProfileSummary>(path)
   const [followError, setFollowError] = useState('')
   const [followAnnouncement, setFollowAnnouncement] = useState('')
+  const [pendingUnfollowId, setPendingUnfollowId] = useState('')
   const [followBusy, setFollowBusy] = useState(false)
   const [followState, setFollowState] = useState<{ count?: number; following?: boolean }>({})
   const [followingCountState, setFollowingCountState] = useState<{ count: number; profileId: string } | null>(null)
@@ -604,6 +610,8 @@ export function ProfilePage() {
   const followerCount = followState.count ?? data?.followerCount ?? 0
   const followingCount = data && followingCountState?.profileId === data.user._id ? followingCountState.count : data?.followingCount ?? 0
   const isFollowing = followState.following ?? Boolean(data?.isFollowing)
+  const areFriends = isFollowing && Boolean(data?.followsYou)
+  const followLabel = data?.followsYou ? (isFollowing ? 'Friends' : 'Follow back') : (isFollowing ? 'Unfollow' : 'Follow')
   const activeConnections = data && connectionState.profileId === data.user._id ? connectionState : null
   const shouldRedirectToAuth = !username && status === 'guest' && !user
 
@@ -612,7 +620,7 @@ export function ProfilePage() {
   }, [shouldRedirectToAuth])
 
   async function toggleFollow() {
-    if (!data) return
+    if (!data || followBusy) return
     if (!user) {
       navigateTo(authHref('/login'))
       return
@@ -626,6 +634,7 @@ export function ProfilePage() {
     } catch (error) {
       setFollowError(getErrorMessage(error, 'Could not update follow status'))
     } finally {
+      setPendingUnfollowId('')
       setFollowBusy(false)
     }
   }
@@ -716,7 +725,7 @@ export function ProfilePage() {
                 <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
                   {!isOwnProfile && (
                     <>
-                      <button aria-busy={followBusy} aria-label={`${isFollowing ? 'Unfollow' : 'Follow'} @${data.user.username}`} aria-pressed={isFollowing} className={`inline-flex min-h-11 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-xl border px-3 text-sm font-black transition disabled:pointer-events-none disabled:opacity-60 sm:flex-none sm:px-5 ${isFollowing ? 'border-foose-border bg-foose-surface text-foose-text hover:border-foose-danger hover:text-foose-danger' : 'border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover'}`} disabled={followBusy} onClick={() => void toggleFollow()} type="button">{followBusy ? 'Updating…' : isFollowing ? 'Unfollow' : 'Follow'}</button>
+                      <button aria-busy={followBusy} aria-label={`${followLabel} @${data.user.username}`} aria-pressed={isFollowing} title={isFollowing ? 'Unfollow' : undefined} className={`inline-flex min-h-11 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-xl border px-3 text-sm font-black transition disabled:pointer-events-none disabled:opacity-60 sm:flex-none sm:px-5 ${isFollowing ? 'border-foose-border bg-foose-surface text-foose-text hover:border-foose-danger hover:text-foose-danger' : 'border-accent bg-accent text-white shadow-md shadow-accent/15 hover:bg-accent-hover'}`} disabled={followBusy} onClick={() => areFriends ? setPendingUnfollowId(data.user._id) : void toggleFollow()} type="button">{followBusy ? 'Updating…' : followLabel}</button>
                       <a className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border border-foose-border bg-foose-surface px-3 text-sm font-black text-foose-text transition hover:border-accent hover:text-accent sm:flex-none sm:px-5" href={withBasePath(messageHref)}><IoChatbubbleOutline size={18} /> Message</a>
                     </>
                   )}
@@ -727,6 +736,7 @@ export function ProfilePage() {
               </div>
             </div>
           </section>
+          <ConfirmDialog busy={followBusy} confirmLabel="Unfollow" iconInTitle description={`Unfollow @${data.user.username}? You'll no longer be friends.`} onCancel={() => setPendingUnfollowId('')} onConfirm={() => void toggleFollow()} open={areFriends && pendingUnfollowId === data.user._id} title="Unfollow?" tone="destructive" />
           {followError && <InlineNotice className="mb-5" title="Follow status did not update" tone="error">{followError}</InlineNotice>}
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start xl:grid-cols-[minmax(0,1fr)_340px]">

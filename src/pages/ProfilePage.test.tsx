@@ -367,7 +367,16 @@ describe('ProfilePage creator tabs', () => {
     expect(screen.getByRole('link', { name: /Kojo Asare/ })).toHaveAttribute('href', '/profile/kojo')
     expect(screen.getByRole('link', { name: 'Message' })).toHaveAttribute('href', '/inbox?receiverId=following-1&conversationId=following-1_user-1_general')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Unfollow' }))
+    const unfollow = within(dialog).getByRole('button', { name: 'Unfollow' })
+    fireEvent.click(unfollow)
+    const confirmation = screen.getByRole('dialog', { name: 'Unfollow?' })
+    expect(mocks.apiDelete).not.toHaveBeenCalled()
+    fireEvent.keyDown(confirmation, { key: 'Escape' })
+    expect(confirmation).not.toBeInTheDocument()
+    expect(dialog).toBeVisible()
+
+    fireEvent.click(unfollow)
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Unfollow?' })).getByRole('button', { name: 'Unfollow' }))
     await waitFor(() => expect(mocks.apiDelete).toHaveBeenCalledWith('/users/kojo/follow'))
     expect(screen.queryByText('@kojo')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'View 2 following' })).toBeVisible()
@@ -397,6 +406,7 @@ describe('ProfilePage creator tabs', () => {
     fireEvent.click(screen.getByRole('button', { name: 'View 3 following' }))
 
     fireEvent.click(await screen.findByRole('button', { name: 'Unfollow' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Unfollow?' })).getByRole('button', { name: 'Unfollow' }))
     expect(await screen.findByText('Connection did not update')).toBeVisible()
     expect(screen.getByText('Connection service unavailable')).toBeVisible()
     expect(screen.getByText('@kojo')).toBeVisible()
@@ -463,6 +473,29 @@ describe('ProfilePage creator tabs', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Unfollow @ama' }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Follow @ama' })).toBeVisible())
     expect(screen.getByRole('button', { name: 'View 8 followers' })).toBeVisible()
+  })
+
+  it('shows Follow back for a follower and Friends after following each other', async () => {
+    viewAsVisitor()
+    mocks.summary = { ...baseSummary(), followsYou: true }
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Follow back @ama' }))
+    const friends = await screen.findByRole('button', { name: 'Friends @ama' })
+    expect(friends).toHaveAttribute('aria-pressed', 'true')
+    mocks.apiPost.mockResolvedValueOnce({ followerCount: 8, following: false })
+    fireEvent.click(friends)
+    const confirmation = screen.getByRole('dialog', { name: 'Unfollow?' })
+    expect(confirmation).toHaveAccessibleDescription("Unfollow @ama? You'll no longer be friends.")
+    expect(mocks.apiPost).toHaveBeenCalledTimes(1)
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }))
+    expect(friends).toBeVisible()
+    expect(mocks.apiPost).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(friends)
+    const confirmButton = within(screen.getByRole('dialog', { name: 'Unfollow?' })).getByRole('button', { name: 'Unfollow' })
+    expect(confirmButton).toHaveClass('bg-foose-danger')
+    fireEvent.click(confirmButton)
+    expect(await screen.findByRole('button', { name: 'Follow back @ama' })).toBeVisible()
   })
 
   it('renders the viewer follow state from the initial profile response without another request', () => {

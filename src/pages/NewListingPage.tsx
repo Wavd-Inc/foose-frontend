@@ -532,7 +532,7 @@ export function NewListingPage() {
 
           <FormSection className={!editId && step !== 0 ? 'hidden' : ''} columns={2} title="Photos & details">
             <div className="form-field-wide">
-              <ImagePreviewInput accept={ACCEPT_IMAGES} aspect="square" existingImages={listing?.images || []} hint="Up to 6 photos, in upload order. Save a draft to keep them." keptName="keptImages" keptTouchedName="keptImagesTouched" label="Listing images" maxFiles={6} multiple name="images" onFilesChange={handleSelectedFilesChange} presentation="strip" />
+              <ImagePreviewInput accept={ACCEPT_IMAGES} aspect="square" existingImages={listing?.images || []} hint="Up to 6 photos. Save a draft to keep them." keptName="keptImages" keptTouchedName="keptImagesTouched" label="Listing images" maxFiles={6} multiple name="images" onFilesChange={handleSelectedFilesChange} presentation="strip" />
             </div>
             <TextField error={titleInvalid ? 'Enter at least 2 characters.' : undefined} id="listing-title" label="Title" name="title" onBlur={() => setTouched((current) => ({ ...current, title: true }))} onChange={(event) => setTitleValue(event.target.value)} placeholder="Vintage bomber jacket" required value={titleValue} wrapperClassName="form-field-wide" />
             <TextAreaField id="listing-description" label="Description" maxLength={LISTING_DESCRIPTION_MAX} name="description" onChange={(event) => setDescriptionValue(event.target.value)} optional placeholder="Condition, fit, measurements or pickup details" rows={3} value={descriptionValue} wrapperClassName="form-field-wide" />

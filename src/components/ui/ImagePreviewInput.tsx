@@ -1,3 +1,4 @@
+import { ImageReorderHandle } from './ImageReorderHandle'
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type DragEvent } from 'react'
 import { FormField } from '../forms/FormField'
 import { fieldDescriptionIds } from '../forms/formUtils'
@@ -233,7 +234,8 @@ export function ImagePreviewInput({
             type="file"
           />
           {keptImages.map((image, index) => (
-            <div className="group relative aspect-square min-w-0 overflow-hidden rounded-lg border border-foose-border bg-foose-surface-mid sm:rounded-xl" key={`${image}-${index}`}>
+            <div data-image-reorder-group={`${inputId}-current`} data-image-reorder-index={index} className="data-[image-drop-target]:ring-2 data-[image-drop-target]:ring-accent group relative aspect-square min-w-0 overflow-hidden rounded-lg border border-foose-border bg-foose-surface-mid sm:rounded-xl" key={`${image}-${index}`}>
+              {keptImages.length > 1 && <ImageReorderHandle src={image} group={`${inputId}-current`} index={index} count={keptImages.length} onMove={(from, to) => setKeptImages((images) => moveItem(images, from, to))} />}
               <LightboxImage alt={`Current upload ${index + 1}`} className="h-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover" index={index} items={previewItems} src={image} />
               <button
                 aria-label={`Remove current upload ${index + 1}`}
@@ -249,7 +251,8 @@ export function ImagePreviewInput({
             </div>
           ))}
           {visibleFiles.map((file, index) => (
-            <div className="group relative aspect-square min-w-0 overflow-hidden rounded-lg border border-foose-border bg-foose-surface-mid sm:rounded-xl" key={file.id}>
+            <div data-image-reorder-group={`${inputId}-selected`} data-image-reorder-index={index} className="data-[image-drop-target]:ring-2 data-[image-drop-target]:ring-accent group relative aspect-square min-w-0 overflow-hidden rounded-lg border border-foose-border bg-foose-surface-mid sm:rounded-xl" key={file.id}>
+              {visibleFiles.length > 1 && <ImageReorderHandle src={file.url} group={`${inputId}-selected`} index={index} count={visibleFiles.length} onMove={reorderSelected} />}
               <LightboxImage alt={file.name || `Selected upload ${index + 1}`} className="h-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover" index={keptImages.length + index} items={previewItems} src={file.url} />
               <button
                 aria-label={`Remove selected upload ${index + 1}`}
@@ -358,19 +361,14 @@ export function ImagePreviewInput({
       {!stripPresentation && !previewPresentation && (keptImages.length > 0 || visibleFiles.length > 0) && (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3" data-testid="image-preview-grid">
           {keptImages.map((image, index) => (
-            <article className="overflow-hidden rounded-xl border border-foose-border bg-foose-surface" key={`${image}-${index}`}>
+            <article data-image-reorder-group={`${inputId}-current`} data-image-reorder-index={index} className="data-[image-drop-target]:ring-2 data-[image-drop-target]:ring-accent relative overflow-hidden rounded-xl border border-foose-border bg-foose-surface" key={`${image}-${index}`}>
               <div className={`overflow-hidden bg-foose-surface-mid ${aspectClass}`} style={aspectStyle}>
                 <LightboxImage alt={`Current upload ${index + 1}`} className={`h-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover ${aspect === 'original' ? '[&_img]:h-auto' : ''}`} index={index} items={previewItems} src={image} />
               </div>
               <div className="p-2">
                 <p className="truncate text-xs font-bold text-foose-text">Current image {index + 1}</p>
                 <div className="mt-2 flex justify-end gap-1">
-                  {keptImages.length > 1 && (
-                    <>
-                      <button aria-label={`Move current upload ${index + 1} earlier`} className="grid min-h-11 min-w-11 place-items-center rounded-lg text-foose-muted hover:bg-accent-light hover:text-accent disabled:opacity-35" disabled={index === 0} onClick={() => setKeptImages((images) => moveItem(images, index, index - 1))} type="button">←</button>
-                      <button aria-label={`Move current upload ${index + 1} later`} className="grid min-h-11 min-w-11 place-items-center rounded-lg text-foose-muted hover:bg-accent-light hover:text-accent disabled:opacity-35" disabled={index === keptImages.length - 1} onClick={() => setKeptImages((images) => moveItem(images, index, index + 1))} type="button">→</button>
-                    </>
-                  )}
+                  {keptImages.length > 1 && <ImageReorderHandle src={image} group={`${inputId}-current`} index={index} count={keptImages.length} onMove={(from, to) => setKeptImages((images) => moveItem(images, from, to))} />}
                   <button
                     aria-label={`Remove current upload ${index + 1}`}
                     className="grid min-h-11 min-w-11 place-items-center rounded-lg text-foose-danger transition hover:bg-foose-danger-bg focus-visible:outline-2 focus-visible:outline-foose-danger"
@@ -387,7 +385,7 @@ export function ImagePreviewInput({
             </article>
           ))}
           {visibleFiles.map((file, index) => (
-            <article className="overflow-hidden rounded-xl border border-foose-border bg-foose-surface" key={file.id}>
+            <article data-image-reorder-group={`${inputId}-selected`} data-image-reorder-index={index} className="data-[image-drop-target]:ring-2 data-[image-drop-target]:ring-accent relative overflow-hidden rounded-xl border border-foose-border bg-foose-surface" key={file.id}>
               <div className={`overflow-hidden bg-foose-surface-mid ${aspectClass}`} style={aspectStyle}>
                 <LightboxImage alt={file.name || `Selected upload ${index + 1}`} className={`h-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover ${aspect === 'original' ? '[&_img]:h-auto' : ''}`} index={keptImages.length + index} items={previewItems} src={file.url} />
               </div>
@@ -395,12 +393,7 @@ export function ImagePreviewInput({
                 <p className="truncate text-xs font-bold text-foose-text" title={file.name}>{file.name}</p>
                 <p className="mt-0.5 text-[11px] font-semibold text-foose-faint">{formatBytes(file.file.size)}</p>
                 <div className="mt-2 flex justify-end gap-1">
-                  {visibleFiles.length > 1 && (
-                    <>
-                      <button aria-label={`Move selected upload ${index + 1} earlier`} className="grid min-h-11 min-w-11 place-items-center rounded-lg text-foose-muted hover:bg-accent-light hover:text-accent disabled:opacity-35" disabled={index === 0} onClick={() => reorderSelected(index, index - 1)} type="button">←</button>
-                      <button aria-label={`Move selected upload ${index + 1} later`} className="grid min-h-11 min-w-11 place-items-center rounded-lg text-foose-muted hover:bg-accent-light hover:text-accent disabled:opacity-35" disabled={index === visibleFiles.length - 1} onClick={() => reorderSelected(index, index + 1)} type="button">→</button>
-                    </>
-                  )}
+                  {visibleFiles.length > 1 && <ImageReorderHandle src={file.url} group={`${inputId}-selected`} index={index} count={visibleFiles.length} onMove={reorderSelected} />}
                   <button aria-label={`Remove selected upload ${index + 1}`} className="grid min-h-11 min-w-11 place-items-center rounded-lg text-foose-danger transition hover:bg-foose-danger-bg focus-visible:outline-2 focus-visible:outline-foose-danger" onClick={() => removeSelectedFile(file.id)} type="button"><Icon name="trash" size={18} /></button>
                 </div>
               </div>
@@ -408,6 +401,8 @@ export function ImagePreviewInput({
           ))}
         </div>
       )}
+
+      {(keptImages.length > 1 || visibleFiles.length > 1) && <p className="mt-2 text-xs text-foose-muted">Drag to reorder.</p>}
 
       {localErrors.length > 0 && (
         <div className="mt-3 rounded-xl border border-foose-danger/30 bg-foose-danger-bg/35 px-4 py-3 text-sm font-semibold text-foose-danger" id={`${inputId}-upload-errors`} role="alert">

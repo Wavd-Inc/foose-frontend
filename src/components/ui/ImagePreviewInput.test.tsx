@@ -33,6 +33,20 @@ describe('ImagePreviewInput', () => {
     expect(screen.getByText('Maximum of 1 image reached.')).toBeVisible()
   })
 
+  it('publishes reordered listing files and keeps preview order in sync', () => {
+    const onFilesChange = vi.fn()
+    render(<ImagePreviewInput label="Listing images" multiple maxFiles={6} name="images" presentation="strip" onFilesChange={onFilesChange} />)
+    const files = ['one', 'two'].map((name) => new File(['image'], `${name}.png`, { type: 'image/png' }))
+    fireEvent.change(screen.getByLabelText('Listing images'), { target: { files } })
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder image 1' }), { key: 'ArrowRight' })
+    expect(onFilesChange).toHaveBeenLastCalledWith([files[1], files[0]])
+    expect(screen.getAllByRole('button', { name: /^Open / }).map((button) => button.getAttribute('aria-label'))).toEqual(['Open two.png', 'Open one.png'])
+    expect(screen.getByText('Drag to reorder.')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove selected upload 1' }))
+    expect(onFilesChange).toHaveBeenLastCalledWith([files[0]])
+    expect(screen.queryByText('Drag to reorder.')).not.toBeInTheDocument()
+  })
+
   it('renders listing images in one six-slot FIFO strip and hides the add tile at the limit', () => {
     render(<ImagePreviewInput accept="image/*" label="Listing images" maxFiles={6} multiple name="images" presentation="strip" />)
     const input = screen.getByLabelText('Listing images')

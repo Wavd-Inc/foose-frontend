@@ -1,4 +1,5 @@
-import { useRef, useState, type ChangeEvent } from 'react'
+import { ImageReorderHandle } from '../ui/ImageReorderHandle'
+import { useId, useRef, useState, type ChangeEvent } from 'react'
 import { Icon } from '../icons/Icon'
 
 const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
@@ -24,6 +25,7 @@ function moveItem<T>(items: T[], from: number, to: number) {
 }
 
 export function FinspoMediaComposer({ items, onChange }: FinspoMediaComposerProps) {
+  const reorderGroup = useId()
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [activeId, setActiveId] = useState(items[0]?.id || '')
   const [errors, setErrors] = useState<string[]>([])
@@ -101,23 +103,19 @@ export function FinspoMediaComposer({ items, onChange }: FinspoMediaComposerProp
       {!!items.length && (
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-8" aria-label="Selected Finspo images">
           {items.map((item, index) => (
-            <article className={`relative overflow-hidden rounded-xl border-2 bg-foose-surface-mid ${activeItem?.id === item.id ? 'border-accent' : 'border-transparent'}`} key={item.id}>
+            <article data-image-reorder-group={reorderGroup} data-image-reorder-index={index} className={`relative data-[image-drop-target]:ring-2 data-[image-drop-target]:ring-accent overflow-hidden rounded-xl border-2 bg-foose-surface-mid ${activeItem?.id === item.id ? 'border-accent' : 'border-transparent'}`} key={item.id}>
               <button aria-label={`Preview image ${index + 1}`} className="block aspect-square w-full" onClick={() => setActiveId(item.id)} type="button">
                 <img alt="" className="h-full w-full object-cover" src={item.url} />
               </button>
               <span className="absolute left-1 top-1 grid size-6 place-items-center rounded-full bg-black/70 text-[10px] font-black text-white">{index + 1}</span>
               <button aria-label={`Remove image ${index + 1}`} className="absolute right-1 top-1 grid size-7 place-items-center rounded-full bg-black/70 text-white hover:bg-foose-danger" onClick={() => removeItem(item.id)} type="button"><Icon name="close" size={14} /></button>
-              {items.length > 1 && (
-                <div className="grid grid-cols-2 border-t border-foose-border bg-foose-surface/95">
-                  <button aria-label={`Move image ${index + 1} earlier`} className="min-h-9 text-sm font-black text-foose-muted hover:text-accent disabled:opacity-25" disabled={index === 0} onClick={() => reorder(index, index - 1)} type="button">←</button>
-                  <button aria-label={`Move image ${index + 1} later`} className="min-h-9 text-sm font-black text-foose-muted hover:text-accent disabled:opacity-25" disabled={index === items.length - 1} onClick={() => reorder(index, index + 1)} type="button">→</button>
-                </div>
-              )}
+              {items.length > 1 && <ImageReorderHandle src={item.url} group={reorderGroup} index={index} count={items.length} onMove={reorder} />}
             </article>
           ))}
         </div>
       )}
 
+      {items.length > 1 && <p className="text-xs text-foose-muted">Drag to reorder.</p>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm font-semibold text-foose-muted">{items.length}/8 images selected · 5 MB maximum each</p>
         {remaining > 0 && <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-foose-border bg-foose-surface px-4 text-sm font-bold text-foose-text transition hover:border-accent hover:text-accent" onClick={() => inputRef.current?.click()} type="button"><Icon name="plus" size={17} /> Add photos</button>}

@@ -5,7 +5,7 @@ import { Icon } from '../icons/Icon'
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 export type DialogProps = {
-  children: ReactNode
+  children?: ReactNode
   className?: string
   closeLabel?: string
   description?: ReactNode
@@ -35,11 +35,13 @@ export function Dialog({
   const titleId = `dialog-${generatedId}-title`
   const descriptionId = `dialog-${generatedId}-description`
   const panelRef = useRef<HTMLDivElement | null>(null)
+  const dismissibleRef = useRef(dismissible)
   const onCloseRef = useRef(onClose)
 
   useEffect(() => {
+    dismissibleRef.current = dismissible
     onCloseRef.current = onClose
-  }, [onClose])
+  }, [dismissible, onClose])
 
   useEffect(() => {
     if (!open) return undefined
@@ -54,7 +56,11 @@ export function Dialog({
     }, 0)
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape' && dismissible) {
+      if (event.key !== 'Escape' && event.key !== 'Tab') return
+      const dialogs = document.querySelectorAll('[role="dialog"][aria-modal="true"]')
+      if (dialogs[dialogs.length - 1] !== panelRef.current) return
+
+      if (event.key === 'Escape' && dismissibleRef.current) {
         event.preventDefault()
         onCloseRef.current()
         return
@@ -87,7 +93,7 @@ export function Dialog({
       document.body.style.overflow = previousOverflow
       window.requestAnimationFrame(() => previouslyFocused?.focus())
     }
-  }, [dismissible, initialFocusRef, open])
+  }, [initialFocusRef, open])
 
   if (!open || typeof document === 'undefined') return null
 
@@ -125,7 +131,7 @@ export function Dialog({
             </button>
           )}
         </header>
-        <div className="min-h-0 min-w-0 flex-1 overscroll-contain overflow-y-auto px-4 py-4 [scrollbar-width:thin] sm:px-6 sm:py-5">{children}</div>
+        {children && <div className="min-h-0 min-w-0 flex-1 overscroll-contain overflow-y-auto px-4 py-4 [scrollbar-width:thin] sm:px-6 sm:py-5">{children}</div>}
         {footer && <footer className="flex flex-col-reverse gap-2 border-t border-foose-border/70 bg-foose-surface-low/45 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 sm:flex-row sm:justify-end sm:px-6 sm:py-4 [&_button]:min-h-11 [&_button]:w-full sm:[&_button]:w-auto">{footer}</footer>}
       </div>
     </div>,
@@ -138,6 +144,7 @@ export function ConfirmDialog({
   cancelLabel = 'Cancel',
   confirmLabel = 'Confirm',
   description,
+  iconInTitle = false,
   onCancel,
   onConfirm,
   open,
@@ -148,6 +155,7 @@ export function ConfirmDialog({
   cancelLabel?: string
   confirmLabel?: string
   description: ReactNode
+  iconInTitle?: boolean
   onCancel: () => void
   onConfirm: () => void
   open: boolean
@@ -156,6 +164,7 @@ export function ConfirmDialog({
 }) {
   const cancelRef = useRef<HTMLButtonElement | null>(null)
   const confirmRef = useRef<HTMLButtonElement | null>(null)
+  const showWarning = tone === 'destructive'
   return (
     <Dialog
       description={description}
@@ -188,9 +197,14 @@ export function ConfirmDialog({
       onClose={onCancel}
       open={open}
       size="sm"
-      title={title}
+      title={showWarning && iconInTitle ? (
+        <span className="inline-flex items-center gap-2 [&>svg]:shrink-0 [&>svg]:text-foose-danger">
+          <Icon name="alert" size={24} />
+          {title}
+        </span>
+      ) : title}
     >
-      {tone === 'destructive' && (
+      {showWarning && !iconInTitle && (
         <div aria-hidden="true" className="grid size-12 place-items-center rounded-full bg-foose-danger-bg text-foose-danger">
           <Icon name="alert" size={24} />
         </div>

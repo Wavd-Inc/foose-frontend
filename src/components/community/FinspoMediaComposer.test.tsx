@@ -16,7 +16,7 @@ describe('FinspoMediaComposer', () => {
     const onChange = vi.fn()
     render(<FinspoMediaComposer items={[existing(1), existing(2)]} onChange={onChange} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Move image 1 later' }))
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder image 1' }), { key: 'ArrowRight' })
 
     expect(onChange).toHaveBeenCalledWith([existing(2), existing(1)])
   })

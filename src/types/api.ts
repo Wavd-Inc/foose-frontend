@@ -541,6 +541,7 @@ export type ProfileSummary = {
   followerCount: number
   followingCount: number
   isFollowing?: boolean
+  followsYou?: boolean
   shop?: Shop | null
 }
 
@@ -611,6 +612,7 @@ export type FinspoAccountSuggestion = Pick<
   '_id' | 'bio' | 'hasShop' | 'isKycVerified' | 'name' | 'profilePhoto' | 'username'
 > & {
   finspoCount: number
+  followsYou?: boolean
 }
 
 export type FollowingFinspoFeed = {

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { MdVerified } from 'react-icons/md'
 import { InlineNotice, LoadingRegion, SkeletonBlock } from '../feedback'
+import { ConfirmDialog } from '../forms/Dialog'
 import { apiPost } from '../../lib/api'
 import type { FinspoAccountSuggestion } from '../../types/api'
 import { getErrorMessage } from '../../utils/errorMessage'
@@ -24,6 +25,7 @@ function SuggestionAvatar({ account }: { account: FinspoAccountSuggestion }) {
 }
 
 export function FinspoAccountSuggestions({ accounts, onFollowingChanged, personalized = false }: FinspoAccountSuggestionsProps) {
+  const [pendingUnfollow, setPendingUnfollow] = useState<FinspoAccountSuggestion | null>(null)
   const [busyId, setBusyId] = useState('')
   const [error, setError] = useState('')
   const [followingIds, setFollowingIds] = useState<Set<string>>(() => new Set())
@@ -47,6 +49,7 @@ export function FinspoAccountSuggestions({ accounts, onFollowingChanged, persona
     } catch (requestError) {
       setError(getErrorMessage(requestError, `Could not follow @${account.username}`))
     } finally {
+      setPendingUnfollow(null)
       setBusyId('')
     }
   }
@@ -69,6 +72,7 @@ export function FinspoAccountSuggestions({ accounts, onFollowingChanged, persona
       <div className="grid gap-2.5 sm:grid-cols-2">
         {accounts.map((account) => {
           const following = followingIds.has(account._id)
+          const followLabel = account.followsYou ? (following ? 'Friends' : 'Follow back') : (following ? 'Following' : 'Follow')
           const busy = busyId === account._id
           const profileHref = withBasePath(`/profile/${account.username}`)
 
@@ -86,18 +90,31 @@ export function FinspoAccountSuggestions({ accounts, onFollowingChanged, persona
                 <span className="mt-0.5 block text-[11px] text-foose-faint">{account.finspoCount} Finspo {account.finspoCount === 1 ? 'post' : 'posts'}</span>
               </a>
               <button
-                aria-label={`${following ? 'Unfollow' : 'Follow'} @${account.username}`}
+                aria-label={`${account.followsYou ? followLabel : following ? 'Unfollow' : 'Follow'} @${account.username}`}
                 className={`inline-flex min-h-10 min-w-20 shrink-0 items-center justify-center rounded-xl border px-3 text-xs font-black transition disabled:pointer-events-none disabled:opacity-60 ${following ? 'border-accent/25 bg-accent-light text-accent' : 'border-accent bg-accent text-white shadow-sm hover:bg-accent-hover'}`}
+                title={following ? 'Unfollow' : undefined}
+                aria-pressed={following}
                 disabled={Boolean(busyId)}
-                onClick={() => void toggleFollow(account)}
+                onClick={() => following && account.followsYou ? setPendingUnfollow(account) : void toggleFollow(account)}
                 type="button"
               >
-                {busy ? 'Saving...' : following ? 'Following' : 'Follow'}
+                {busy ? 'Saving...' : followLabel}
               </button>
             </article>
           )
         })}
       </div>
+      <ConfirmDialog
+        busy={Boolean(busyId)}
+        confirmLabel="Unfollow"
+        description={pendingUnfollow ? `Unfollow @${pendingUnfollow.username}? You'll no longer be friends.` : ''}
+        iconInTitle
+        onCancel={() => setPendingUnfollow(null)}
+        onConfirm={() => { if (pendingUnfollow) void toggleFollow(pendingUnfollow) }}
+        open={Boolean(pendingUnfollow)}
+        title="Unfollow?"
+        tone="destructive"
+      />
     </section>
   )
 }
